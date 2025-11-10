@@ -1,0 +1,315 @@
+import os
+import subprocess
+import sys
+import zipfile
+from tkinter import *
+from tkinter import ttk, messagebox, filedialog
+
+# مسیر OpenSSL — قابل تنظیم
+OPENSSL_PATH = r"C:\OpenSSL\bin\openssl.exe"
+
+class CSRGeneratorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("ابزار تولید CSR — GICA")
+        self.root.geometry("650x580")
+        self.root.resizable(False, False)
+        
+        # تنظیم فونت فارسی (در صورت وجود)
+        self.font_normal = ("B Nazanin", 12)
+        self.font_bold = ("B Nazanin", 12, "bold")
+        self.font_small = ("B Nazanin", 10)
+        
+        # تلاش برای استفاده از فونت فارسی؛ در غیر این صورت فونت پیش‌فرض
+        try:
+            # تست فونت
+            test_label = Label(self.root, text="تست", font=self.font_normal)
+            test_label.pack_forget()
+        except:
+            self.font_normal = ("Tahoma", 10)
+            self.font_bold = ("Tahoma", 10, "bold")
+            self.font_small = ("Tahoma", 9)
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        # عنوان بالا
+        title = Label(self.root, text="🛠️ ابزار تولید CSR و کلیدهای GICA", 
+                      font=self.font_bold, fg="#2c3e50")
+        title.pack(pady=10)
+
+        # انتخاب نوع کاربر
+        type_frame = LabelFrame(self.root, text="نوع کاربر", font=self.font_bold)
+        type_frame.pack(fill="x", padx=20, pady=5)
+
+        self.user_type = StringVar(value="individual")
+        rb1 = Radiobutton(type_frame, text="شخص حقیقی (Unaffiliated)", 
+                          variable=self.user_type, value="individual",
+                          font=self.font_normal, command=self.toggle_fields)
+        rb2 = Radiobutton(type_frame, text="شخصیت حقوقی (غیردولتی)", 
+                          variable=self.user_type, value="ngo",
+                          font=self.font_normal, command=self.toggle_fields)
+        rb1.pack(side="right", padx=15, pady=5)
+        rb2.pack(side="right", padx=15, pady=5)
+
+        # فریم ورودی‌ها
+        self.input_frame = LabelFrame(self.root, text="اطلاعات هویتی", font=self.font_bold)
+        self.input_frame.pack(fill="both", expand=True, padx=20, pady=5)
+
+        # شبکه بندی
+        fields = [
+            ("نام (به انگلیسی):", "first_name", 0),
+            ("نام خانوادگی / نام سازمان (به انگلیسی، بدون فاصله):", "last_org_name", 1),
+            ("کد ملی / شناسه ملی (۱۰ یا ۱۱ رقم):", "national_id", 2),
+            ("شهر:", "city", 3),
+            ("استان:", "province", 4),
+        ]
+
+        self.entries = {}
+        for label_text, key, row in fields:
+            lbl = Label(self.input_frame, text=label_text, font=self.font_normal, anchor="e")
+            lbl.grid(row=row, column=1, sticky="e", padx=10, pady=5)
+            
+            ent = Entry(self.input_frame, font=self.font_normal, width=30)
+            ent.grid(row=row, column=0, sticky="w", padx=10, pady=5)
+            self.entries[key] = ent
+
+        # واحد سازمانی (اختیاری — فقط برای حقوقی)
+        ou_frame = LabelFrame(self.root, text="واحدهای سازمانی (اختیاری — فقط برای شخصیت حقوقی)", 
+                              font=self.font_bold)
+        ou_frame.pack(fill="x", padx=20, pady=5)
+
+        self.ou_entries = []
+        for i in range(3):
+            lbl = Label(ou_frame, text=f"واحد {i+1}:", font=self.font_normal)
+            lbl.grid(row=0, column=i*2+1, sticky="e", padx=(5,2), pady=5)
+            ent = Entry(ou_frame, font=self.font_small, width=18)
+            ent.grid(row=0, column=i*2, sticky="w", padx=(2,5), pady=5)
+            self.ou_entries.append(ent)
+
+        # تنظیمات پیشرفته
+        options_frame = Frame(self.root)
+        options_frame.pack(fill="x", padx=20, pady=5)
+
+        self.save_config = BooleanVar(value=True)
+        chk1 = Checkbutton(options_frame, text="ذخیره فایل config.txt", 
+                           variable=self.save_config, font=self.font_normal)
+        chk1.pack(side="right", padx=10)
+
+        self.open_folder = BooleanVar(value=True)
+        chk2 = Checkbutton(options_frame, text="باز کردن پوشه پس از اتمام", 
+                           variable=self.open_folder, font=self.font_normal)
+        chk2.pack(side="right", padx=10)
+
+        # دکمه تولید
+        btn_frame = Frame(self.root)
+        btn_frame.pack(pady=15)
+
+        self.generate_btn = Button(btn_frame, text="تولید کلید و CSR", 
+                                   command=self.generate, font=self.font_bold,
+                                   bg="#2ecc71", fg="white", width=20, height=2)
+        self.generate_btn.pack()
+
+        # لاگ‌ها
+        log_frame = LabelFrame(self.root, text="وضعیت", font=self.font_bold)
+        log_frame.pack(fill="both", expand=True, padx=20, pady=5)
+
+        self.log = Text(log_frame, height=6, font=("Consolas", 9), state="disabled", bg="#f8f9fa")
+        self.log.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # پیام پایین
+        footer = Label(self.root, 
+                       text="✅ فایل‌های خروجی: mycsr.txt, mykey.key, mypublickey.pem",
+                       font=self.font_small, fg="#7f8c8d")
+        footer.pack(pady=5)
+
+        self.toggle_fields()  # اعمال حالت اولیه
+
+    def log_message(self, msg, level="info"):
+        self.log.config(state="normal")
+        prefix = "ℹ️ " if level == "info" else "✅ " if level == "success" else "❌ "
+        self.log.insert(END, f"{prefix}{msg}\n")
+        self.log.see(END)
+        self.log.config(state="disabled")
+
+    def toggle_fields(self):
+        is_individual = (self.user_type.get() == "individual")
+        self.entries["first_name"].config(state="normal" if is_individual else "disabled")
+        self.entries["first_name"].delete(0, END)
+        if not is_individual:
+            self.entries["first_name"].insert(0, "—")
+
+        # تغییر برچسب
+        if is_individual:
+            self.entries["last_org_name"].config(state="normal")
+            self.entries["last_org_name"].delete(0, END)
+        else:
+            self.entries["last_org_name"].config(state="normal")
+
+        # واحدهای سازمانی
+        for ent in self.ou_entries:
+            ent.config(state="normal" if not is_individual else "disabled")
+
+    def validate(self):
+        is_individual = (self.user_type.get() == "individual")
+        
+        if is_individual:
+            first = self.entries["first_name"].get().strip()
+            last = self.entries["last_org_name"].get().strip()
+            if not first or not last:
+                messagebox.showerror("خطا", "نام و نام خانوادگی الزامی است.")
+                return False
+        else:
+            org = self.entries["last_org_name"].get().strip()
+            if not org:
+                messagebox.showerror("خطا", "نام سازمان الزامی است.")
+                return False
+            if not org.replace('_', '').replace('-', '').isalnum() or not org.isascii():
+                messagebox.showerror("خطا", "نام سازمان باید به انگلیسی و بدون فاصله باشد (مثال: TechSolutions).")
+                return False
+
+        national_id = self.entries["national_id"].get().strip()
+        if not national_id.isdigit() or not (10 <= len(national_id) <= 11):
+            messagebox.showerror("خطا", "کد ملی/شناسه ملی باید ۱۰ یا ۱۱ رقمی باشد.")
+            return False
+
+        city = self.entries["city"].get().strip()
+        province = self.entries["province"].get().strip()
+        if not city or not province:
+            messagebox.showerror("خطا", "شهر و استان الزامی هستند.")
+            return False
+
+        return True
+
+    def generate(self):
+        if not self.validate():
+            return
+
+        self.generate_btn.config(state="disabled", text="در حال پردازش...")
+        self.log_message("شروع فرآیند تولید...", "info")
+
+        try:
+            # بررسی OpenSSL
+            if not os.path.exists(OPENSSL_PATH):
+                raise FileNotFoundError(f"OpenSSL در مسیر {OPENSSL_PATH} یافت نشد.")
+
+            is_individual = (self.user_type.get() == "individual")
+            current_dir = os.getcwd()
+
+            # جمع‌آوری داده‌ها
+            if is_individual:
+                cn = f"{self.entries['first_name'].get().strip()} {self.entries['last_org_name'].get().strip()}[Sign]"
+                org = "Unaffiliated"
+                ou_lines = []
+            else:
+                cn = f"{self.entries['last_org_name'].get().strip()}[Stamp]"
+                org = "Non-Governmental"
+                ou_lines = []
+                for i, ent in enumerate(self.ou_entries):
+                    val = ent.get().strip()
+                    if val:
+                        ou_lines.append(f"{i+1}.OU = {val}")
+
+            config_content = f"""[req]
+prompt = no
+distinguished_name = dn
+
+[dn]
+CN = {cn}
+serialNumber = {self.entries['national_id'].get().strip()}
+O = {org}
+"""
+            config_content += "\n".join(ou_lines) + "\n"
+            config_content += f"""L = {self.entries['city'].get().strip()}
+ST = {self.entries['province'].get().strip()}
+C = IR
+"""
+
+            # ذخیره config.txt
+            config_path = os.path.join(current_dir, "config.txt")
+            with open(config_path, "w", encoding="utf-8") as f:
+                f.write(config_content)
+            self.log_message("فایل config.txt ساخته شد.", "success")
+
+            # مسیرهای خروجی
+            key_path = os.path.join(current_dir, "mykey.key")
+            csr_path = os.path.join(current_dir, "mycsr.txt")
+            pub_path = os.path.join(current_dir, "mypublickey.pem")
+
+            # حذف فایل‌های قدیمی
+            for f in [key_path, csr_path, pub_path]:
+                if os.path.exists(f):
+                    os.remove(f)
+
+            # دستور ۱: تولید CSR و کلید خصوصی (بدون رمز)
+            cmd1 = [
+                OPENSSL_PATH, "req", "-new", "-utf8", "-nodes",
+                "-config", config_path,
+                "-newkey", "rsa:2048",
+                "-keyout", key_path,
+                "-out", csr_path
+            ]
+            result = subprocess.run(cmd1, capture_output=True, text=True, encoding="utf-8")
+            if result.returncode != 0:
+                raise RuntimeError(f"خطا در تولید CSR:\n{result.stderr}")
+
+            self.log_message("کلید خصوصی و CSR ساخته شدند.", "success")
+
+            # دستور ۲: تولید کلید عمومی
+            cmd2 = [OPENSSL_PATH, "rsa", "-in", key_path, "-pubout", "-out", pub_path]
+            result = subprocess.run(cmd2, capture_output=True, text=True, encoding="utf-8")
+            if result.returncode != 0:
+                self.log_message("⚠️ کلید عمومی ساخته نشد (اما CSR معتبر است).", "info")
+            else:
+                self.log_message("کلید عمومی نیز ساخته شد.", "success")
+
+            # حذف config.txt در صورت عدم درخواست
+            if not self.save_config.get():
+                os.remove(config_path)
+                self.log_message("فایل config.txt حذف شد.", "info")
+
+            # ساخت ZIP (اختیاری — فعلاً فقط پیشنهاد)
+            self.log_message("✅ فرآیند با موفقیت انجام شد!", "success")
+
+            # باز کردن پوشه
+            if self.open_folder.get():
+                os.startfile(current_dir)
+
+            # پیشنهاد دانلود ZIP
+            if messagebox.askyesno("پیشنهاد", "آیا می‌خواهید فایل‌ها را به صورت ZIP ذخیره کنید؟"):
+                self.create_zip()
+
+        except Exception as e:
+            self.log_message(f"خطا: {str(e)}", "error")
+            messagebox.showerror("خطا", f"خطایی رخ داد:\n{e}")
+
+        finally:
+            self.generate_btn.config(state="normal", text="تولید کلید و CSR")
+
+    def create_zip(self):
+        try:
+            zip_path = filedialog.asksaveasfilename(
+                title="ذخیره فایل ZIP",
+                defaultextension=".zip",
+                filetypes=[("ZIP files", "*.zip")],
+                initialfile="csr_files.zip"
+            )
+            if not zip_path:
+                return
+
+            with zipfile.ZipFile(zip_path, 'w') as zf:
+                files = ["mycsr.txt", "mykey.key", "mypublickey.pem"]
+                if os.path.exists("config.txt"):
+                    files.append("config.txt")
+                for f in files:
+                    if os.path.exists(f):
+                        zf.write(f, arcname=f)
+            self.log_message(f"فایل ZIP در {os.path.basename(zip_path)} ذخیره شد.", "success")
+            messagebox.showinfo("موفقیت", "فایل‌ها با موفقیت در ZIP بسته‌بندی شدند.")
+        except Exception as e:
+            messagebox.showerror("خطا", f"خطا در ساخت ZIP:\n{e}")
+
+if __name__ == "__main__":
+    root = Tk()
+    app = CSRGeneratorApp(root)
+    root.mainloop()
