@@ -1,0 +1,12 @@
+# همهٔ فایل‌های متنی با LF ذخیره شوند (چه در ویندوز، چه در لینوکس)
+* text=auto eol=lf
+
+# فایل‌های باینری
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.rar binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
