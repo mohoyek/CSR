@@ -1,0 +1,13 @@
+{
+  "entrypoint": "dist/index.html",
+  "compatibilityDate": "2026-10-21",
+  "modules": [
+    {
+      "name": "index.html",
+      "type": "html",
+      "path": "dist/index.html"
+    }
+  ],
+  "assetsDirectory": "dist/assets",
+  "spa": true
+}

@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+freebuff-sites-build/
+.freebuff/
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# environment
+.env
+.env.*

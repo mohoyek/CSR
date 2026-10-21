@@ -1,0 +1,50 @@
+{
+  "name": "gs-csr-generator",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ابزار تولید CSR و PFX بر اساس راهنمای GICA — کاملا سمت کاربر",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:single": "tsc --noEmit && vite build --mode single",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "audit": "node scripts/audit-policy.mjs",
+    "interop": "tsx scripts/openssl-interop.mjs",
+    "verify": "npm run typecheck && npm run test && npm run audit && npm run build && npm run build:single"
+  },
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "asn1js": "3.1.0",
+    "node-forge": "1.4.0",
+    "pkijs": "3.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwindcss": "4.3.3",
+    "vazirmatn": "33.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "@types/node-forge": "1.3.14",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "prettier": "3.9.10",
+    "puppeteer-core": "25.15.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vite-plugin-singlefile": "2.3.4",
+    "vitest": "5.0.5"
+  }
+}

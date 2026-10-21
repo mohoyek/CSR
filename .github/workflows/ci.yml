@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: ساخت، تست و راستی‌آزمایی OpenSSL
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: برداشت کد
+        uses: actions/checkout@v4
+
+      - name: نصب Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: نصب وابستگی‌ها (با lockfile)
+        run: npm ci
+
+      - name: بررسی نسخهٔ OpenSSL
+        run: openssl version
+
+      - name: بررسی نوع‌ها
+        run: npm run typecheck
+
+      - name: اجرای تست‌ها
+        # شامل تست‌های سرتاسری با مرورگر (Chrome روی runner نصب است)
+        run: npm test
+
+      - name: راستی‌آزمایی درون‌تطبیقی با OpenSSL
+        run: npm run interop
+
+      - name: بررسی npm audit
+        run: npm run audit
+
+      - name: ساخت نسخهٔ ایستا
+        run: npm run build
+
+      - name: ساخت نسخهٔ تک‌فایلی آفلاین
+        run: npm run build:single
+
+      - name: بررسی وجود خروجی
+        run: |
+          test -f dist/index.html
+          test -f dist/index.html && grep -q "Content-Security-Policy" dist/index.html
+          echo "ساخت تک‌فایلی OK"
+
+  # The interop tests need a real OpenSSL; the job above runs on ubuntu where
+  # OpenSSL 3.x is preinstalled. This job repeats the same checks on Windows.
+  windows-interop:
+    name: راستی‌آزمایی OpenSSL روی ویندوز
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: بررسی نسخهٔ OpenSSL
+        run: openssl version
+      - run: npm test
+      - run: npm run interop
