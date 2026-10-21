@@ -1,26 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CsrWizard } from './components/CsrWizard';
+import { CsrForm } from './components/CsrForm';
 import { PfxPanel } from './components/PfxPanel';
-import { Notice } from './components/ui';
+import type { CertType, ProfileId } from '../core/profiles';
 import type { GenerateResult } from '../core/x509';
 
-type Tab = 'csr' | 'pfx';
-type Theme = 'light' | 'dark';
+type Tab = ProfileId | 'pfx';
 
 const THEME_STORAGE_KEY = 'gica-csr:theme';
 
-function readStoredTheme(): Theme | null {
+const PROFILE_TABS: { id: ProfileId; label: string }[] = [
+  { id: 1, label: 'شخص حقیقی' },
+  { id: 2, label: 'مهر سازمانی' },
+  { id: 3, label: 'دفتر ثبت‌نام' },
+];
+
+function preferredTheme(): 'light' | 'dark' {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === 'light' || stored === 'dark' ? stored : null;
+    if (stored === 'light' || stored === 'dark') return stored;
   } catch {
-    return null;
+    /* storage may be unavailable */
   }
-}
-
-function preferredTheme(): Theme {
-  const stored = readStoredTheme();
-  if (stored) return stored;
   try {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   } catch {
@@ -29,10 +29,10 @@ function preferredTheme(): Theme {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('csr');
-  const [theme, setTheme] = useState<Theme>(preferredTheme);
+  const [tab, setTab] = useState<Tab>(2);
+  const [certType, setCertType] = useState<CertType>('NGO');
+  const [theme, setTheme] = useState<'light' | 'dark'>(preferredTheme);
   const [unsaved, setUnsaved] = useState(false);
-  const [lastResult, setLastResult] = useState<GenerateResult | null>(null);
 
   // theme — only the colour preference is stored, never key material
   useEffect(() => {
@@ -58,17 +58,17 @@ export default function App() {
   }, [unsaved]);
 
   const registerUnsaved = useCallback((dirty: boolean) => setUnsaved(dirty), []);
-  const handleGenerated = useCallback((result: GenerateResult | null) => setLastResult(result), []);
-
-  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  const handleGenerated = useCallback((_result: GenerateResult | null) => {
+    /* the result lives in the form component; nothing to keep here */
+  }, []);
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-extrabold sm:text-lg">
-              ابزار ساخت CSR و PFX — مرکز توسعه تجارت الکترونیکی
+              ابزار ساخت CSR و PFX
             </h1>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">
               بر اساس راهنمای GICA (GICA.SW.User.CertProfilev1.0، نسخهٔ ۱.۰، ۱۴۰۴/۰۷/۲۵)
@@ -77,7 +77,7 @@ export default function App() {
           <button
             type="button"
             className="btn-secondary px-3 py-1.5"
-            onClick={toggleTheme}
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
             aria-label={theme === 'dark' ? 'تغییر به حالت روشن' : 'تغییر به حالت تاریک'}
           >
             {theme === 'dark' ? '☀ روشن' : '🌙 تاریک'}
@@ -85,47 +85,51 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-5 px-4 py-6">
-        <Notice tone="warning" title="🔐 کلید خصوصی را محرمانه نگه دارید">
-          فایل <span className="ltr inline-block">mykey.key</span> حاوی کلید خصوصی شماست.
-          <strong> این فایل را به هیچ‌کس ندهید و آن را برای هیچ‌کس ارسال نکنید.</strong> فقط
-          فایل <span className="ltr inline-block">mycsr.txt</span> (درخواست گواهی) را برای
-          صدور گواهی به مرجع صدور (CA) بفرستید. رمز عبور کلید را هم در اختیار هیچ‌کس
-          قرار ندهید.
-        </Notice>
+      <main className="mx-auto max-w-5xl space-y-4 px-4 py-5">
+        {/* one-line confidentiality notice */}
+        <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+          <span aria-hidden="true">🔐</span>
+          <p>
+            فایل <span className="ltr inline-block">mykey.key</span> محرمانه است — آن را به
+            هیچ‌کس ندهید. فقط <span className="ltr inline-block">mycsr.txt</span> را برای
+            صدور گواهی بفرستید.
+          </p>
+        </div>
 
-        <div role="tablist" aria-label="بخش‌های ابزار" className="flex gap-2">
-          <TabButton
-            active={tab === 'csr'}
-            onClick={() => setTab('csr')}
-            label="ساخت CSR"
-            icon="📝"
-          />
+        {/* tabs */}
+        <div role="tablist" aria-label="بخش‌های ابزار" className="flex flex-wrap gap-2">
+          {PROFILE_TABS.map((t) => (
+            <TabButton
+              key={t.id}
+              active={tab === t.id}
+              onClick={() => setTab(t.id)}
+              label={t.label}
+            />
+          ))}
           <TabButton
             active={tab === 'pfx'}
             onClick={() => setTab('pfx')}
             label="ساخت PFX"
-            icon="📦"
           />
         </div>
 
         <div role="tabpanel">
-          {tab === 'csr' ? (
-            <CsrWizard onGenerated={handleGenerated} registerUnsaved={registerUnsaved} />
-          ) : (
+          {tab === 'pfx' ? (
             <PfxPanel />
+          ) : (
+            <CsrForm
+              key={tab}
+              profileId={tab}
+              certType={certType}
+              onCertTypeChange={setCertType}
+              onGenerated={handleGenerated}
+              registerUnsaved={registerUnsaved}
+            />
           )}
         </div>
-
-        {lastResult && tab === 'csr' ? (
-          <p className="hint text-center">
-            کلید و CSR تولیدشده فقط در حافظهٔ همین صفحه نگهداری می‌شود و با بستن یا نوسازی
-            صفحه از بین می‌رود. اگر فایل‌ها را نگرفته‌اید، ابتدا آن‌ها را دریافت کنید.
-          </p>
-        ) : null}
       </main>
 
-      <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+      <footer className="border-t border-slate-200 py-5 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
         همهٔ عملیات رمزنگاری درون مرورگر شما انجام می‌شود؛ هیچ داده‌ای به هیچ سروری ارسال
         نمی‌شود.
       </footer>
@@ -137,12 +141,10 @@ function TabButton({
   active,
   onClick,
   label,
-  icon,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
-  icon: string;
 }) {
   return (
     <button
@@ -150,13 +152,13 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+      className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
         active
           ? 'bg-brand-700 text-white shadow-sm'
           : 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
       }`}
     >
-      <span aria-hidden="true">{icon}</span> {label}
+      {label}
     </button>
   );
 }

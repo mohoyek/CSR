@@ -6,7 +6,7 @@ import {
   type OrgPreset,
 } from '../../core/orgPreset';
 import type { CertType } from '../../core/profiles';
-import { Notice, downloadText } from './ui';
+import { downloadText } from './ui';
 
 /**
  * خروجی/ورودی پیش‌تنظیم سازمان — فقط داده‌های غیرمحرمانه.
@@ -54,44 +54,49 @@ export function OrgPresetPanel({
   };
 
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 p-4 dark:border-slate-700">
-      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-        پیش‌تنظیم سازمان (اختیاری)
-      </h3>
-      <p className="hint mb-3">
-        نام سازمان، واحدها، استان و شهر را یک‌بار ذخیره کنید تا در درخواست‌های بعدی دوباره
-        وارد نشوند. این فایل <strong>هیچ کلید یا رمز عبوری</strong> در خود ندارد.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-secondary" onClick={handleExport}>
-          ⤓ خروجی پیش‌تنظیم
-        </button>
-        <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()}>
-          ⤒ ورود پیش‌تنظیم
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          className="sr-only"
-          aria-label="انتخاب فایل پیش‌تنظیم سازمان"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleImport(file);
-            e.target.value = '';
-          }}
-        />
-      </div>
-      {message ? (
-        <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400" role="status">
-          {message}
+    <details className="rounded-xl border border-slate-200 dark:border-slate-700">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
+        پیش‌تنظیم سازمان (ذخیرهٔ نام سازمان، واحدها، استان و شهر برای استفادهٔ بعدی)
+      </summary>
+      <div className="border-t border-slate-200 p-4 dark:border-slate-700">
+        <p className="hint mb-3">
+          این فایل <strong>هیچ کلید یا رمز عبوری</strong> در خود ندارد.
         </p>
-      ) : null}
-      {error ? (
-        <div className="mt-2">
-          <Notice tone="danger">{error}</Notice>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={handleExport}>
+            ⤓ خروجی پیش‌تنظیم
+          </button>
+          <button
+            type="button"
+            className="btn-secondary px-3 py-1.5 text-xs"
+            onClick={() => fileRef.current?.click()}
+          >
+            ⤒ ورود پیش‌تنظیم
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            aria-label="انتخاب فایل پیش‌تنظیم سازمان"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleImport(file);
+              e.target.value = '';
+            }}
+          />
         </div>
-      ) : null}
-    </div>
+        {message ? (
+          <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400" role="status">
+            {message}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </details>
   );
 }

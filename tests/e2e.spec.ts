@@ -82,7 +82,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     server?.close();
   });
 
-  it('walks through the wizard and produces the three files', async () => {
+  it('fills the form, generates and produces the three files', async () => {
     const page = await browser!.newPage();
     const consoleErrors: string[] = [];
     page.on('console', (msg) => {
@@ -92,17 +92,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
 
     await page.goto(baseUrl, { waitUntil: 'networkidle0' });
 
-    /* ---- step 1: profile ---- */
-    await page.waitForSelector('input[name="profile"]');
-    // profile 2 is the default; select it explicitly
-    const profileRadios = await page.$$('input[name="profile"]');
-    await profileRadios[1]!.click();
-    await page.waitForFunction(
-      () => document.body.innerText.includes('گواهی امضای شخص حقوقی')
-    );
-    await page.click('button ::-p-text(بعدی: تکمیل فرم)');
-
-    /* ---- step 2: fill the form ---- */
+    /* ---- pick the legal-person profile (the default tab) ---- */
     await page.waitForSelector('#f-serialNumber');
     const values: Record<string, string> = {
       'f-serialNumber': '14000405500',
@@ -115,7 +105,9 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
       await page.focus(`#${id}`);
       await page.type(`#${id}`, value);
     }
+
     // the live preview must show the subject
+    await page.click('summary ::-p-text(پیش‌نمایش موضوع گواهی)');
     await page.waitForFunction(() =>
       document.body.innerText.includes('Iran Center for Ecommerce Development [Stamp]')
     );
@@ -123,23 +115,17 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     expect(bodyText).toContain('CN=Iran Center for Ecommerce Development [Stamp]');
     expect(bodyText).toContain('serialNumber=14000405500');
     expect(bodyText).toContain('C=IR');
+    // the equivalent config.txt of the guide
+    expect(bodyText).toContain('1.OU = مرکز توسعه تجارت الکترونیکی');
 
-    await page.click('button ::-p-text(بعدی: بازبینی)');
-
-    /* ---- step 3: review ---- */
-    await page.waitForFunction(() => document.body.innerText.includes('config.txt'));
-    const reviewText = await page.evaluate(() => document.body.innerText);
-    expect(reviewText).toContain('1.OU = مرکز توسعه تجارت الکترونیکی');
-
-    await page.click('button ::-p-text(بعدی: رمز عبور)');
-
-    /* ---- step 4: passphrase + generate ---- */
-    await page.waitForSelector('#passphrase');
+    /* ---- passphrase + generate ---- */
+    await page.focus('#passphrase');
     await page.type('#passphrase', 'Test Passphrase 123');
+    await page.focus('#passphrase-confirm');
     await page.type('#passphrase-confirm', 'Test Passphrase 123');
-    await page.click('button ::-p-text(تولید کلید و CSR)');
+    await page.click('button ::-p-text(تولید CSR و کلیدها)');
 
-    /* ---- step 5: results ---- */
+    /* ---- results ---- */
     await page.waitForFunction(
       () => (document.body.textContent ?? '').includes('-----BEGIN CERTIFICATE REQUEST-----'),
       { timeout: 60_000 }
@@ -148,7 +134,14 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     expect(resultText).toContain('-----BEGIN CERTIFICATE REQUEST-----');
     expect(resultText).toContain('-----BEGIN ENCRYPTED PRIVATE KEY-----');
     expect(resultText).toContain('-----BEGIN PUBLIC KEY-----');
-    await page.waitForFunction(() => document.body.innerText.includes('خودارزیابی موفق'));
+    // the three file names of the guide
+    expect(resultText).toContain('mycsr.txt');
+    expect(resultText).toContain('mykey.key');
+    expect(resultText).toContain('mypublickey.pem');
+    // the status panel reports success
+    await page.waitForFunction(() =>
+      document.body.innerText.includes('کلید، CSR و کلید عمومی با موفقیت ساخته')
+    );
 
     // the CSR must be verifiable by OpenSSL
     const csr = await page.evaluate(() => {
@@ -185,7 +178,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     // switch to the PFX tab
     await page.waitForSelector('[role="tab"]');
     const tabs = await page.$$('[role="tab"]');
-    await tabs[1]!.click();
+    await tabs[3]!.click(); // the PFX tab
     await page.waitForFunction(() => document.body.innerText.includes('ساخت keystore.pfx'));
 
     // the tab must be independent: no CSR result is carried over
@@ -226,18 +219,15 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     await page.focus('#export-confirm');
     await page.type('#export-confirm', 'Export Pass 123');
 
-    // the mismatch check must succeed
-    await page.click('button ::-p-text(بررسی تطابق کلید و گواهی)');
-    await page.waitForFunction(
-      () => document.body.innerText.includes('کلید عمومی گواهی با کلید خصوصی یکسان است'),
-      { timeout: 60_000 }
-    );
-
-    // building the PFX must succeed
-    await page.click('button ::-p-text(ساخت و دریافت keystore.pfx)');
+    // building the PFX must succeed (the key/cert match is checked while building)
+    await page.click('button ::-p-text(ساخت keystore.pfx)');
     await page.waitForFunction(
       () => document.body.innerText.includes('فایل keystore.pfx ساخته و دریافت شد'),
       { timeout: 120_000 }
+    );
+    // the status panel confirms that the public key matched
+    await page.waitForFunction(() =>
+      document.body.innerText.includes('کلید عمومی گواهی با کلید خصوصی یکسان است')
     );
 
     await page.close();
@@ -247,7 +237,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     const page = await browser!.newPage();
     await page.goto(baseUrl, { waitUntil: 'networkidle0' });
     const tabs = await page.$$('[role="tab"]');
-    await tabs[1]!.click();
+    await tabs[3]!.click(); // the PFX tab
     await page.waitForFunction(() => document.body.innerText.includes('ساخت keystore.pfx'));
 
     const { encryptPkcs8, encryptedPkcs8Pem, exportPkcs8Der, generateKeyPair } = await import(
@@ -278,9 +268,9 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     await page.focus('#key-passphrase');
     await page.type('#key-passphrase', 'Test Passphrase 123');
 
-    await page.click('button ::-p-text(بررسی تطابق کلید و گواهی)');
+    await page.click('button ::-p-text(ساخت keystore.pfx)');
     await page.waitForFunction(
-      () => document.body.innerText.includes('کلید عمومی گواهی با کلید خصوصی واردشده یکسان نیست'),
+      () => document.body.innerText.includes('یکسان نیست'),
       { timeout: 60_000 }
     );
     await page.close();

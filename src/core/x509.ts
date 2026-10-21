@@ -33,6 +33,13 @@ export interface GenerateResult {
   };
 }
 
+/** گزارش مرحله‌ای برای نمایش وضعیت به کاربر */
+export type ProgressLevel = 'info' | 'success' | 'error';
+export interface Progress {
+  level: ProgressLevel;
+  text: string;
+}
+
 /**
  * Build the X.501 Name of the CSR.
  *
@@ -96,12 +103,18 @@ export async function verifyCsrDer(csrDer: Uint8Array): Promise<boolean> {
 /** Generate all three artifacts (CSR, encrypted key, public key) with self-checks */
 export async function generateMaterials(
   rdns: RdnValue[],
-  passphrase: string
+  passphrase: string,
+  onProgress?: (progress: Progress) => void
 ): Promise<GenerateResult> {
+  const report = (level: ProgressLevel, text: string) => onProgress?.({ level, text });
+
+  report('info', 'در حال ساخت کلید RSA-2048…');
   const keyPair = await generateKeyPair();
 
+  report('info', 'در حال ساخت درخواست گواهی (CSR)…');
   const csrPem = await buildCsrPem(rdns, keyPair);
 
+  report('info', 'در حال رمزنگاری کلید خصوصی…');
   const pkcs8 = await exportPkcs8Der(keyPair.privateKey);
   const encDer = await encryptPkcs8(pkcs8, passphrase);
   const encryptedKeyPem = encryptedPkcs8Pem(encDer);
@@ -110,8 +123,10 @@ export async function generateMaterials(
   const publicKeyPem = spkiPem(spki);
 
   /* ---- self-checks (fail loudly, never show unverified output) ---- */
+  report('info', 'در حال بررسی امضای CSR…');
   const csrVerified = await verifyCsrDer(pkiCsrDerFromPem(csrPem));
 
+  report('info', 'در حال باز کردن کلید رمزنگذاری‌شده…');
   let keyReimport = false;
   try {
     const decPem = await decryptEncryptedPkcs8(encDer, passphrase);
@@ -122,8 +137,11 @@ export async function generateMaterials(
   }
 
   if (!csrVerified || !keyReimport) {
+    report('error', 'خودارزیابی ناموفق بود — نتایج نشان داده نمی‌شود.');
     throw new Error('خودارزیابی ناموفق بود — نتایج نشان داده نمی‌شود. لطفاً دوباره تلاش کنید.');
   }
+
+  report('success', 'کلید، CSR و کلید عمومی با موفقیت ساخته و راستی‌آزمایی شدند.');
 
   return {
     csrPem,

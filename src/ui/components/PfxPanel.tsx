@@ -8,226 +8,178 @@ import {
   parseCertificateDer,
 } from '../../core/pfx';
 import { PASSPHRASE_MIN_LENGTH, passphraseStrength, passphrasesMatch } from '../../core/validate';
-import { Field, Notice, Spinner, downloadBytes } from './ui';
+import { Field, Spinner, StatusLog, downloadBytes, type LogEntry } from './ui';
 
 const STRENGTH_LABELS = ['خیلی ضعیف', 'ضعیف', 'متوسط', 'خوب', 'قوی'];
-
-interface CertificateFile {
-  name: string;
-  der: Uint8Array;
-}
 
 /**
  * ساخت فایل PFX (PKCS#12) از گواهی صادرشده و کلید خصوصی.
  *
- * این تب مستقل از تب «ساخت CSR» است: می‌توانید چند روز بعد، فقط با
- * داشتن گواهی صادرشده و فایل mykey.key، این کار را انجام دهید.
- * هیچ داده‌ای از تب قبلی به اینجا منتقل نمی‌شود.
+ * این تب مستقل از ساخت CSR است: چند روز بعد و روی هر رایانه‌ای، فقط با
+ * داشتن گواهی صادرشده و فایل mykey.key قابل استفاده است.
  */
 export function PfxPanel() {
   const certInputRef = useRef<HTMLInputElement>(null);
   const keyInputRef = useRef<HTMLInputElement>(null);
   const chainInputRef = useRef<HTMLInputElement>(null);
 
-  const [cert, setCert] = useState<CertificateFile | null>(null);
-  const [chain, setChain] = useState<CertificateFile[]>([]);
+  const [certDer, setCertDer] = useState<Uint8Array | null>(null);
+  const [certName, setCertName] = useState<string | null>(null);
+  const [chainDers, setChainDers] = useState<Uint8Array[]>([]);
+  const [keyName, setKeyName] = useState<string | null>(null);
   const [keyPem, setKeyPem] = useState<string>('');
-  const [keyName, setKeyName] = useState<string>('');
   const [keyPassphrase, setKeyPassphrase] = useState('');
   const [exportPassword, setExportPassword] = useState('');
   const [exportConfirm, setExportConfirm] = useState('');
   const [legacy, setLegacy] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [keyMatch, setKeyMatch] = useState<boolean | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
 
   const strength = passphraseStrength(exportPassword);
   const confirmOk = passphrasesMatch(exportPassword, exportConfirm).ok;
   const passwordOk = exportPassword.length >= PASSPHRASE_MIN_LENGTH;
 
-  const readCertificate = useCallback(async (file: File) => {
-    setError(null);
-    setSuccess(null);
-    try {
-      const buf = await file.arrayBuffer();
-      const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
-      const der = certificateDerFromInput(buf, text);
-      // validate that it really is an X.509 certificate
-      parseCertificateDer(der);
-      setCert({ name: file.name, der });
-    } catch (e) {
-      setCert(null);
-      setError(
-        e instanceof Error
-          ? `خواندن گواهی ناموفق بود: ${e.message}`
-          : 'خواندن گواهی ناموفق بود'
-      );
-    }
+  const push = useCallback((entry: LogEntry) => {
+    setLog((prev) => [...prev, entry]);
   }, []);
 
-  const readChain = useCallback(async (file: File) => {
-    setError(null);
-    try {
-      const text = await file.text();
-      const ders = certificateChainFromPem(text);
-      if (ders.length === 0) {
-        setError('در فایل زنجیره، هیچ گواهی PEM یافت نشد.');
-        return;
+  const readCertificate = useCallback(
+    async (file: File) => {
+      setLog([]);
+      try {
+        const buf = await file.arrayBuffer();
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+        const der = certificateDerFromInput(buf, text);
+        parseCertificateDer(der); // validate that it really is an X.509 certificate
+        setCertDer(der);
+        setCertName(file.name);
+        push({ level: 'success', text: `گواهی «${file.name}» خوانده شد.` });
+      } catch (e) {
+        setCertDer(null);
+        setCertName(null);
+        push({
+          level: 'error',
+          text: e instanceof Error ? `خواندن گواهی ناموفق بود: ${e.message}` : 'خواندن گواهی ناموفق بود',
+        });
       }
-      setChain(ders.map((der, i) => ({ name: `${file.name}#${i + 1}`, der })));
-    } catch {
-      setError('خواندن زنجیرهٔ CA ناموفق بود.');
-    }
-  }, []);
+    },
+    [push]
+  );
 
-  const readKey = useCallback(async (file: File) => {
-    setError(null);
-    setKeyName(file.name);
-    setKeyPem(await file.text());
-  }, []);
-
-  const handleCheckMatch = useCallback(async () => {
-    if (!cert || !keyPem) return;
-    setError(null);
-    setKeyMatch(null);
-    try {
-      const { pkcs8 } = await loadPrivateKeyFile(keyPem, keyPassphrase);
-      const matches = await keyMatchesCertificate(cert.der, pkcs8);
-      setKeyMatch(matches);
-      if (!matches) {
-        setError(
-          'کلید عمومی گواهی با کلید خصوصی واردشده یکسان نیست. این فایل PFX ساخته نخواهد شد.'
-        );
+  const readChain = useCallback(
+    async (file: File) => {
+      try {
+        const ders = certificateChainFromPem(await file.text());
+        if (ders.length === 0) {
+          push({ level: 'error', text: 'در فایل زنجیره، هیچ گواهی PEM یافت نشد.' });
+          return;
+        }
+        setChainDers(ders);
+        push({ level: 'success', text: `${ders.length} گواهی از زنجیرهٔ CA خوانده شد.` });
+      } catch {
+        push({ level: 'error', text: 'خواندن زنجیرهٔ CA ناموفق بود.' });
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'بررسی تطابق کلید ناموفق بود.');
-    }
-  }, [cert, keyPem, keyPassphrase]);
+    },
+    [push]
+  );
+
+  const readKey = useCallback(
+    async (file: File) => {
+      setLog([]);
+      setKeyName(file.name);
+      setKeyPem(await file.text());
+      push({ level: 'success', text: `کلید خصوصی «${file.name}» خوانده شد.` });
+    },
+    [push]
+  );
 
   const handleBuild = useCallback(async () => {
-    setError(null);
-    setSuccess(null);
-    if (!cert) {
-      setError('ابتدا فایل گواهی صادرشده را انتخاب کنید.');
-      return;
-    }
-    if (!keyPem) {
-      setError('ابتدا فایل کلید خصوصی (mykey.key) را انتخاب کنید.');
-      return;
-    }
-    if (!passwordOk || !confirmOk) {
-      setError('رمز خروجی معتبر نیست یا با تکرار آن یکسان نیست.');
-      return;
-    }
-
+    setLog([]);
     setBusy(true);
     try {
-      const { pkcs8 } = await loadPrivateKeyFile(keyPem, keyPassphrase);
-      const matches = await keyMatchesCertificate(cert.der, pkcs8);
-      if (!matches) {
-        setError(
-          'کلید عمومی گواهی با کلید خصوصی واردشده یکسان نیست — ساخت PFX متوقف شد.'
-        );
+      if (!certDer) {
+        push({ level: 'error', text: 'ابتدا فایل گواهی صادرشده را انتخاب کنید.' });
         return;
       }
+      if (!keyPem) {
+        push({ level: 'error', text: 'ابتدا فایل کلید خصوصی (mykey.key) را انتخاب کنید.' });
+        return;
+      }
+      if (!passwordOk || !confirmOk) {
+        push({ level: 'error', text: 'رمز خروجی معتبر نیست یا با تکرار آن یکسان نیست.' });
+        return;
+      }
+
+      push({ level: 'info', text: 'در حال باز کردن کلید خصوصی…' });
+      const { pkcs8 } = await loadPrivateKeyFile(keyPem, keyPassphrase);
+
+      push({ level: 'info', text: 'در حال بررسی تطابق کلید و گواهی…' });
+      const matches = await keyMatchesCertificate(certDer, pkcs8);
+      if (!matches) {
+        push({
+          level: 'error',
+          text: 'کلید عمومی گواهی با کلید خصوصی واردشده یکسان نیست — ساخت PFX متوقف شد.',
+        });
+        return;
+      }
+      push({ level: 'success', text: 'کلید عمومی گواهی با کلید خصوصی یکسان است.' });
+
+      push({ level: 'info', text: 'در حال ساخت keystore.pfx…' });
       const pfx = await buildPfx({
-        certs: { leaf: cert.der, chain: chain.map((c) => c.der) },
+        certs: { leaf: certDer, chain: chainDers },
         privateKeyPkcs8Der: pkcs8,
         exportPassword,
         legacy,
         friendlyName: 'keystore',
       });
       downloadBytes('keystore.pfx', pfx);
-      setKeyMatch(true);
-      setSuccess('فایل keystore.pfx ساخته و دریافت شد.');
+      push({ level: 'success', text: 'فایل keystore.pfx ساخته و دریافت شد.' });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'ساخت فایل PFX ناموفق بود.');
+      push({ level: 'error', text: e instanceof Error ? e.message : 'ساخت فایل PFX ناموفق بود.' });
     } finally {
       setBusy(false);
     }
-  }, [cert, keyPem, keyPassphrase, passwordOk, confirmOk, exportPassword, legacy, chain]);
+  }, [certDer, keyPem, keyPassphrase, passwordOk, confirmOk, exportPassword, legacy, chainDers, push]);
 
   return (
-    <div className="space-y-5">
-      <Notice tone="info" title="این تب مستقل است">
-        برای ساخت PFX به گواهی صادرشده و فایل کلید خصوصی نیاز دارید. می‌توانید این کار را
-        چند روز بعد و روی هر رایانه‌ای انجام دهید؛ هیچ اطلاعاتی از بخش «ساخت CSR» اینجا
-        منتقل نمی‌شود.
-      </Notice>
+    <div className="space-y-4">
+      <section className="card p-4">
+        <h2 className="mb-3 text-base font-bold">ساخت keystore.pfx</h2>
+        <p className="hint mb-4">
+          برای ساخت PFX به گواهی صادرشده و فایل کلید خصوصی نیاز دارید. این کار را می‌توانید
+          چند روز بعد و روی هر رایانه‌ای انجام دهید.
+        </p>
 
-      <section className="card p-5">
-        <h2 className="mb-4 text-lg font-bold">ساخت keystore.pfx</h2>
-
-        <div className="grid gap-5 lg:grid-cols-2">
-          {/* ---- certificate ---- */}
-          <div className="space-y-4">
-            <div>
-              <h3 className="mb-2 text-sm font-bold">۱) گواهی صادرشده</h3>
-              <p className="hint mb-2">
-                فایل گواهی که از مرجع صدور دریافت کرده‌اید (PEM یا DER، پسوندهای
-                <span className="ltr inline-block"> .crt / .cer / .pem</span>).
-              </p>
-              <input
-                ref={certInputRef}
-                type="file"
-                accept=".crt,.cer,.pem,.der,application/x-x509-ca-cert,application/pkix-cert"
-                className="sr-only"
-                aria-label="انتخاب فایل گواهی صادرشده"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void readCertificate(file);
-                  e.target.value = '';
-                }}
-              />
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => certInputRef.current?.click()}
-                >
-                  ⤒ انتخاب گواهی
-                </button>
-                {cert ? (
-                  <span className="chip bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    ✓ {cert.name}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="mb-2 text-sm font-bold">۲) کلید خصوصی (mykey.key)</h3>
-              <p className="hint mb-2">
-                همان فایل رمزگذاری‌شده‌ای که در مرحلهٔ ساخت CSR گرفتید.
-              </p>
-              <input
-                ref={keyInputRef}
-                type="file"
-                accept=".key,.pem,application/x-pem-file"
-                className="sr-only"
-                aria-label="انتخاب فایل کلید خصوصی"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void readKey(file);
-                  e.target.value = '';
-                }}
-              />
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => keyInputRef.current?.click()}
-                >
-                  ⤒ انتخاب کلید خصوصی
-                </button>
-                {keyName ? (
-                  <span className="chip bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    ✓ {keyName}
-                  </span>
-                ) : null}
-              </div>
-            </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* inputs */}
+          <div className="space-y-3">
+            <FileRow
+              label="گواهی صادرشده"
+              hint="فایل دریافتی از مرجع صدور (PEM یا DER؛ پسوندهای .crt / .cer / .pem)."
+              picked={certName}
+              onPick={() => certInputRef.current?.click()}
+              inputRef={certInputRef}
+              accept=".crt,.cer,.pem,.der,application/x-x509-ca-cert,application/pkix-cert"
+              onFile={(f) => void readCertificate(f)}
+            />
+            <FileRow
+              label="کلید خصوصی (mykey.key)"
+              hint="همان فایل رمزگذاری‌شده‌ای که هنگام ساخت CSR گرفتید."
+              picked={keyName}
+              onPick={() => keyInputRef.current?.click()}
+              inputRef={keyInputRef}
+              accept=".key,.pem,application/x-pem-file"
+              onFile={(f) => void readKey(f)}
+            />
+            <FileRow
+              label="زنجیرهٔ CA (اختیاری)"
+              hint="گواهی ریشه یا میانی، اگر دارید."
+              picked={chainDers.length > 0 ? `${chainDers.length} گواهی` : null}
+              onPick={() => chainInputRef.current?.click()}
+              inputRef={chainInputRef}
+              accept=".crt,.cer,.pem"
+              onFile={(f) => void readChain(f)}
+            />
 
             <Field
               id="key-passphrase"
@@ -242,106 +194,54 @@ export function PfxPanel() {
                   value={keyPassphrase}
                   autoComplete="off"
                   aria-describedby={describedBy}
-                  onChange={(e) => {
-                    setKeyPassphrase(e.target.value);
-                    setKeyMatch(null);
-                  }}
+                  onChange={(e) => setKeyPassphrase(e.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+
+          {/* export password */}
+          <div className="space-y-3">
+            <Field
+              id="export-password"
+              label="رمز خروجی PFX"
+              required
+              hint={`حداقل ${PASSPHRASE_MIN_LENGTH} نویسه — هنگام وارد کردن فایل در ویندوز لازم است.`}
+              error={exportPassword.length > 0 && !passwordOk ? `رمز باید حداقل ${PASSPHRASE_MIN_LENGTH} نویسه باشد` : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
+                <input
+                  id={id}
+                  type="password"
+                  className={`input ${invalid ? 'input-error' : ''}`}
+                  value={exportPassword}
+                  autoComplete="new-password"
+                  aria-describedby={describedBy}
+                  aria-invalid={invalid || undefined}
+                  onChange={(e) => setExportPassword(e.target.value)}
                 />
               )}
             </Field>
 
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => void handleCheckMatch()}
-              disabled={!cert || !keyPem}
+            <Field
+              id="export-confirm"
+              label="تکرار رمز خروجی"
+              required
+              error={exportConfirm.length > 0 && !confirmOk ? 'رمز و تکرار آن یکسان نیستند' : undefined}
             >
-              🔍 بررسی تطابق کلید و گواهی
-            </button>
-            {keyMatch === true ? (
-              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400" role="status">
-                ✓ کلید عمومی گواهی با کلید خصوصی یکسان است.
-              </p>
-            ) : null}
-
-            <div>
-              <h3 className="mb-2 text-sm font-bold">۳) زنجیرهٔ CA (اختیاری)</h3>
-              <p className="hint mb-2">
-                اگر گواهی ریشه یا گواهی میانی دارید، اینجا اضافه کنید تا در PFX قرار گیرد.
-              </p>
-              <input
-                ref={chainInputRef}
-                type="file"
-                accept=".crt,.cer,.pem"
-                className="sr-only"
-                aria-label="انتخاب فایل زنجیرهٔ CA"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void readChain(file);
-                  e.target.value = '';
-                }}
-              />
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => chainInputRef.current?.click()}
-                >
-                  ⤒ انتخاب زنجیره
-                </button>
-                {chain.length > 0 ? (
-                  <span className="chip bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                    ✓ {chain.length} گواهی
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* ---- export password + options ---- */}
-          <div className="space-y-4">
-            <div className="grid gap-4">
-              <Field
-                id="export-password"
-                label="رمز خروجی PFX"
-                required
-                hint={`حداقل ${PASSPHRASE_MIN_LENGTH} نویسه — هنگام وارد کردن فایل در ویندوز لازم است.`}
-                error={exportPassword.length > 0 && !passwordOk ? `رمز باید حداقل ${PASSPHRASE_MIN_LENGTH} نویسه باشد` : undefined}
-              >
-                {({ id, describedBy, invalid }) => (
-                  <input
-                    id={id}
-                    type="password"
-                    className={`input ${invalid ? 'input-error' : ''}`}
-                    value={exportPassword}
-                    autoComplete="new-password"
-                    aria-describedby={describedBy}
-                    aria-invalid={invalid || undefined}
-                    onChange={(e) => setExportPassword(e.target.value)}
-                  />
-                )}
-              </Field>
-
-              <Field
-                id="export-confirm"
-                label="تکرار رمز خروجی"
-                required
-                error={exportConfirm.length > 0 && !confirmOk ? 'رمز و تکرار آن یکسان نیستند' : undefined}
-              >
-                {({ id, describedBy, invalid }) => (
-                  <input
-                    id={id}
-                    type="password"
-                    className={`input ${invalid ? 'input-error' : ''}`}
-                    value={exportConfirm}
-                    autoComplete="new-password"
-                    aria-describedby={describedBy}
-                    aria-invalid={invalid || undefined}
-                    onChange={(e) => setExportConfirm(e.target.value)}
-                  />
-                )}
-              </Field>
-            </div>
+              {({ id, describedBy, invalid }) => (
+                <input
+                  id={id}
+                  type="password"
+                  className={`input ${invalid ? 'input-error' : ''}`}
+                  value={exportConfirm}
+                  autoComplete="new-password"
+                  aria-describedby={describedBy}
+                  aria-invalid={invalid || undefined}
+                  onChange={(e) => setExportConfirm(e.target.value)}
+                />
+              )}
+            </Field>
 
             {exportPassword.length > 0 ? (
               <div className="flex items-center gap-2">
@@ -349,58 +249,85 @@ export function PfxPanel() {
                 <span className="chip bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                   {STRENGTH_LABELS[strength]}
                 </span>
-                <span className="flex gap-1" aria-hidden="true">
-                  {[0, 1, 2, 3].map((i) => (
-                    <span
-                      key={i}
-                      className={`h-1.5 w-6 rounded-full ${
-                        i < strength ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    />
-                  ))}
-                </span>
               </div>
             ) : null}
 
-            <details className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-              <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">
-                تنظیمات پیشرفته
-              </summary>
-              <label className="mt-3 flex cursor-pointer items-start gap-2">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={legacy}
-                  onChange={(e) => setLegacy(e.target.checked)}
-                />
-                <span className="text-sm">
-                  <span className="block font-medium">سازگاری قدیمی (۳DES / SHA-1)</span>
-                  <span className="hint">
-                    برای نسخه‌های قدیمی ویندوز و برنامه‌هایی که فقط PKCS#12 کلاسیک را می‌پذیرند.
-                    در حالت پیش‌فرض، PFX با AES-256 و MAC بر پایهٔ SHA-1 ساخته می‌شود.
-                  </span>
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={legacy}
+                onChange={(e) => setLegacy(e.target.checked)}
+              />
+              <span>
+                <span className="block font-medium">سازگاری قدیمی (۳DES / SHA-1)</span>
+                <span className="hint">
+                  برای نسخه‌های قدیمی ویندوز و برنامه‌هایی که فقط PKCS#12 کلاسیک را می‌پذیرند.
                 </span>
-              </label>
-            </details>
-
-            {error ? <Notice tone="danger">{error}</Notice> : null}
-            {success ? <Notice tone="success">{success}</Notice> : null}
+              </span>
+            </label>
 
             <button
               type="button"
               className="btn-primary w-full"
               onClick={() => void handleBuild()}
-              disabled={busy || !cert || !keyPem || !passwordOk || !confirmOk}
+              disabled={busy}
             >
-              {busy ? <Spinner label="در حال ساخت…" /> : '📦 ساخت و دریافت keystore.pfx'}
+              {busy ? <Spinner label="در حال ساخت…" /> : '📦 ساخت keystore.pfx'}
             </button>
-
-            <p className="hint">
-              ساخت PFX ممکن است چند ثانیه طول بکشد (مشتق کلید با تعداد بالای تکرار).
-            </p>
           </div>
         </div>
       </section>
+
+      {log.length > 0 ? <StatusLog entries={log} /> : null}
+    </div>
+  );
+}
+
+/** یک ردیف انتخاب فایل */
+function FileRow({
+  label,
+  hint,
+  picked,
+  onPick,
+  inputRef,
+  accept,
+  onFile,
+}: {
+  label: string;
+  hint: string;
+  picked: string | null;
+  onPick: () => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  accept: string;
+  onFile: (file: File) => void;
+}) {
+  return (
+    <div>
+      <p className="text-sm font-semibold">{label}</p>
+      <p className="hint mb-1.5">{hint}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={onPick}>
+          ⤒ انتخاب فایل
+        </button>
+        {picked ? (
+          <span className="chip bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+            ✓ {picked}
+          </span>
+        ) : null}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="sr-only"
+        aria-label={label}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFile(file);
+          e.target.value = '';
+        }}
+      />
     </div>
   );
 }

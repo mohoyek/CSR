@@ -113,6 +113,53 @@ export function Field({ id, label, required, hint, error, warning, sample, child
 }
 
 /* ------------------------------------------------------------------ */
+/* Status log                                                          */
+/* ------------------------------------------------------------------ */
+
+export interface LogEntry {
+  level: 'info' | 'success' | 'error';
+  text: string;
+}
+
+const LOG_ICONS: Record<LogEntry['level'], string> = {
+  info: '•',
+  success: '✔',
+  error: '✖',
+};
+
+const LOG_COLORS: Record<LogEntry['level'], string> = {
+  info: 'text-slate-600 dark:text-slate-300',
+  success: 'text-emerald-600 dark:text-emerald-400',
+  error: 'text-red-600 dark:text-red-400',
+};
+
+/** ناحیهٔ «وضعیت» — گزارش مرحله‌به‌مرحلهٔ کار */
+export function StatusLog({ entries }: { entries: LogEntry[] }) {
+  return (
+    <div
+      className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"
+      role="log"
+      aria-live="polite"
+    >
+      {entries.length === 0 ? (
+        <p className="text-xs text-slate-500 dark:text-slate-400">هنوز کاری انجام نشده است.</p>
+      ) : (
+        <ul className="space-y-1">
+          {entries.map((entry, i) => (
+            <li key={`${i}-${entry.text}`} className={`flex gap-2 text-xs ${LOG_COLORS[entry.level]}`}>
+              <span aria-hidden="true" className="w-3 shrink-0 text-center">
+                {LOG_ICONS[entry.level]}
+              </span>
+              <span>{entry.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Misc                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -125,28 +172,23 @@ export function CodeBlock({ title, children }: { title?: string; children: React
   );
 }
 
-export function StepBadge({ index, title, active, done }: { index: number; title: string; active: boolean; done: boolean }) {
+/** بخش تاشو (collapsible) برای موارد کم‌کاربرد */
+export function Collapsible({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
   return (
-    <li className="flex items-center gap-2" aria-current={active ? 'step' : undefined}>
-      <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-          done
-            ? 'bg-brand-700 text-white'
-            : active
-              ? 'bg-brand-100 text-brand-900 ring-2 ring-brand-600 dark:bg-brand-900 dark:text-brand-100'
-              : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-        }`}
-      >
-        {done ? '✓' : index}
-      </span>
-      <span
-        className={`text-xs sm:text-sm ${
-          active ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'
-        }`}
-      >
+    <details open={defaultOpen} className="rounded-xl border border-slate-200 dark:border-slate-700">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
         {title}
-      </span>
-    </li>
+      </summary>
+      <div className="border-t border-slate-200 p-4 dark:border-slate-700">{children}</div>
+    </details>
   );
 }
 
