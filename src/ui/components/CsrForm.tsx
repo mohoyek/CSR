@@ -15,7 +15,6 @@ import {
 } from '../../core/dn';
 import { generateMaterials, type GenerateResult } from '../../core/x509';
 import { Field, Spinner, StatusLog, copyToClipboard, downloadText, type LogEntry } from './ui';
-import { OrgPresetPanel } from './OrgPresetPanel';
 import { SubjectPreview } from './SubjectPreview';
 
 export interface CsrFormProps {
@@ -139,15 +138,8 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
                 id={`f-${f.id}`}
                 label={f.label}
                 required={presence === 'required'}
-                sample={f.sample}
                 error={showErrors(f.id) ? res?.error : undefined}
                 warning={showErrors(f.id) ? res?.warning : undefined}
-                hint={
-                  f.hint ??
-                  (f.lang === 'En'
-                    ? 'با حرف اول بزرگ و بدون فاصله نوشته شود (مثل: IranCenterForEcommerceDevelopment)'
-                    : undefined)
-                }
               >
                 {({ id, describedBy, invalid }) => (
                   <input
@@ -253,13 +245,6 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
         </div>
       </details>
 
-      <OrgPresetPanel
-        values={values as Record<string, string>}
-        certType={certType}
-        onApply={(next) => {
-          setValues((prev) => ({ ...prev, ...next }));
-        }}
-      />
     </div>
   );
 }

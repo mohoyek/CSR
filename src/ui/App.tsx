@@ -63,12 +63,9 @@ export default function App() {
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-extrabold sm:text-lg">ابزار ساخت CSR</h1>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-              بر اساس راهنمای GICA (GICA.SW.User.CertProfilev1.0، نسخهٔ ۱.۰، ۱۴۰۴/۰۷/۲۵)
-            </p>
-          </div>
+          <h1 className="min-w-0 flex-1 truncate text-base font-extrabold sm:text-lg">
+            ابزار ساخت کلید های مودیبان
+          </h1>
           <button
             type="button"
             className="btn-secondary px-3 py-1.5"
@@ -81,16 +78,6 @@ export default function App() {
       </header>
 
       <main className="mx-auto max-w-4xl space-y-4 px-4 py-5">
-        {/* one-line confidentiality notice */}
-        <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
-          <span aria-hidden="true">🔐</span>
-          <p>
-            فایل <span className="ltr inline-block">mykey.key</span> محرمانه است — آن را به
-            هیچ‌کس ندهید. فقط <span className="ltr inline-block">mycsr.txt</span> را برای
-            صدور گواهی بفرستید.
-          </p>
-        </div>
-
         {/* tabs */}
         <div role="tablist" aria-label="نوع گواهی" className="flex flex-wrap gap-2">
           {PROFILE_TABS.map((t) => (

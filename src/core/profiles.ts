@@ -48,10 +48,6 @@ export interface FieldDef {
   numeric?: boolean;
   /** optional per-field validator over the normalized value */
   validate?: (value: string) => FieldResult;
-  /** sample value shown as helper text */
-  sample?: string;
-  /** extra helper text shown under the field */
-  hint?: string;
   /** OU slot: 'org' = organization-name OU (emitted last), n = unit slot (emitted in descending order) */
   ouSlot?: 'org' | 1 | 2 | 3;
   /** this field is an input that only composes the CN template */
@@ -144,8 +140,6 @@ function emailField(): FieldDef {
     asn1Type: IA5,
     presence: { Gov: 'optional', NGO: 'optional', Una: 'optional' },
     validate: validateEmail,
-    hint: 'قالب نشانی رایانامه: name@example.com',
-    sample: 'sysadmin@ecdev.ir',
   };
 }
 
@@ -162,7 +156,6 @@ function nationalCodeField(): FieldDef {
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
     numeric: true,
     validate: validateNationalCode,
-    sample: '4958927530',
   };
 }
 
@@ -178,7 +171,6 @@ function legalIdField(): FieldDef {
     presence: { Gov: 'required', NGO: 'required' },
     numeric: true,
     validate: validateLegalId,
-    sample: '14000405500',
   };
 }
 
@@ -194,7 +186,6 @@ function raOfficeIdField(): FieldDef {
     presence: { Gov: 'required', NGO: 'required' },
     numeric: true,
     validate: validateDigitsOnly,
-    sample: '14020001',
   };
 }
 
@@ -203,7 +194,7 @@ function raOfficeIdField(): FieldDef {
  * واحدهای سازمانی طبق درخواست حذف شده‌اند؛ خروجی فقط یک `1.OU` دارد،
  * دقیقاً مثل نمونهٔ کاربردی راهنما.
  */
-function ouFields(orgLabel: string, orgSample: string): FieldDef[] {
+function ouFields(orgLabel: string): FieldDef[] {
   return [
     {
       id: 'ouOrg',
@@ -215,7 +206,6 @@ function ouFields(orgLabel: string, orgSample: string): FieldDef[] {
       asn1Type: UTF8,
       presence: { Gov: 'required', NGO: 'required' },
       ouSlot: 'org',
-      sample: orgSample,
     },
   ];
 }
@@ -230,7 +220,6 @@ const provinceCity: FieldDef[] = [
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
-    sample: 'تهران',
   },
   {
     id: 'l',
@@ -241,7 +230,6 @@ const provinceCity: FieldDef[] = [
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
-    sample: 'تهران',
   },
 ];
 
@@ -256,7 +244,6 @@ const orgIdField: FieldDef = {
   presence: { Gov: 'required', NGO: 'required' },
   numeric: true,
   validate: validateDigitsOnly,
-  sample: '14000405500',
 };
 
 /* ------------------------------------------------------------------ */
@@ -266,7 +253,7 @@ const orgIdField: FieldDef = {
 const naturalPersonFields: FieldDef[] = [
   nationalCodeField(),
   emailField(),
-  ...ouFields('نام سازمان', 'مرکز توسعه تجارت الکترونیکی'),
+  ...ouFields('نام سازمان'),
   {
     id: 'cnGiven',
     oid: '',
@@ -278,7 +265,6 @@ const naturalPersonFields: FieldDef[] = [
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
     validate: validateEn,
     cnInput: true,
-    sample: 'Ali',
   },
   {
     id: 'cnFamily',
@@ -291,7 +277,6 @@ const naturalPersonFields: FieldDef[] = [
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
     validate: validateEn,
     cnInput: true,
-    sample: 'Ahmadi',
   },
   {
     id: 'sn',
@@ -302,7 +287,6 @@ const naturalPersonFields: FieldDef[] = [
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
-    sample: 'احمدی',
   },
   {
     id: 'gn',
@@ -313,7 +297,6 @@ const naturalPersonFields: FieldDef[] = [
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
-    sample: 'علی',
   },
   {
     id: 'title',
@@ -324,7 +307,6 @@ const naturalPersonFields: FieldDef[] = [
     lang: 'All',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required' },
-    sample: 'کارشناس فناوری اطلاعات',
   },
   orgIdField,
   ...provinceCity,
@@ -337,7 +319,7 @@ const naturalPersonFields: FieldDef[] = [
 const legalPersonFields: FieldDef[] = [
   legalIdField(),
   emailField(),
-  ...ouFields('نام سازمان (فارسی)', 'مرکز توسعه تجارت الکترونیکی'),
+  ...ouFields('نام سازمان (فارسی)'),
   {
     id: 'cnOrgNameEn',
     oid: '',
@@ -349,7 +331,6 @@ const legalPersonFields: FieldDef[] = [
     presence: { Gov: 'required', NGO: 'required' },
     validate: validateEn,
     cnInput: true,
-    sample: 'IranCenterForEcommerceDevelopment',
   },
   ...provinceCity,
 ];
@@ -360,7 +341,7 @@ const legalPersonFields: FieldDef[] = [
 
 const raOfficeFields: FieldDef[] = [
   raOfficeIdField(),
-  ...ouFields('نام دفتر ثبت‌نام (فارسی)', 'دفتر ثبت‌نام مرکزی'),
+  ...ouFields('نام دفتر ثبت‌نام (فارسی)'),
   {
     id: 'raName',
     oid: '',
@@ -372,7 +353,6 @@ const raOfficeFields: FieldDef[] = [
     presence: { Gov: 'required', NGO: 'required' },
     validate: validateEn,
     cnInput: true,
-    sample: 'CentralRegistrationOffice',
   },
   {
     id: 'raNationalCode',
@@ -386,7 +366,6 @@ const raOfficeFields: FieldDef[] = [
     numeric: true,
     validate: validateNationalCodeField,
     cnInput: true,
-    sample: '4958927530',
   },
   {
     id: 'sn',
@@ -397,7 +376,6 @@ const raOfficeFields: FieldDef[] = [
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required' },
-    sample: 'احمدی',
   },
   {
     id: 'gn',
@@ -408,7 +386,6 @@ const raOfficeFields: FieldDef[] = [
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required' },
-    sample: 'علی',
   },
   ...provinceCity,
 ];

@@ -56,24 +56,20 @@ export interface FieldProps {
   id: string;
   label: string;
   required?: boolean;
-  hint?: string;
   error?: string;
   warning?: string;
-  sample?: string;
   children: (props: { id: string; describedBy: string | undefined; invalid: boolean }) => ReactNode;
 }
 
 /**
- * یک فیلد فرم با برچسب، نشانگر «اجباری»، متن راهنما و پیام خطای درون‌خطی.
+ * یک فیلد فرم با برچسب، نشانگر «اجباری» و پیام خطای درون‌خطی.
  * الگوی `children` باعث می‌شود کنترل واقعی (input/select/textarea)
  * توسط فرم کنترل شود و برچسب و aria همیشه درست بمانند.
  */
-export function Field({ id, label, required, hint, error, warning, sample, children }: FieldProps) {
-  const hintId = hint ? `${id}-hint` : undefined;
-  const sampleId = sample ? `${id}-sample` : undefined;
+export function Field({ id, label, required, error, warning, children }: FieldProps) {
   const errorId = error ? `${id}-error` : undefined;
   const warningId = warning ? `${id}-warning` : undefined;
-  const describedBy = [errorId, warningId, hintId, sampleId].filter(Boolean).join(' ') || undefined;
+  const describedBy = [errorId, warningId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div>
@@ -88,16 +84,6 @@ export function Field({ id, label, required, hint, error, warning, sample, child
         {required ? <span className="sr-only">(اجباری)</span> : null}
       </label>
       {children({ id, describedBy, invalid: Boolean(error) })}
-      {hint ? (
-        <p id={hintId} className="hint">
-          {hint}
-        </p>
-      ) : null}
-      {sample ? (
-        <p id={sampleId} className="hint">
-          نمونه: <span className="ltr inline-block">{sample}</span>
-        </p>
-      ) : null}
       {error ? (
         <p id={errorId} className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
           {error}
