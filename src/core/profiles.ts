@@ -41,6 +41,8 @@ export interface FieldDef {
   configName: string;
   /** Persian label shown in the UI */
   label: string;
+  /** short description shown inside the input (placeholder) */
+  placeholder?: string;
   lang: Lang;
   asn1Type: Asn1StringType;
   presence: PresenceMap;
@@ -134,6 +136,7 @@ function emailField(): FieldDef {
     shortName: 'E',
     configName: 'emailAddress',
     label: 'نشانی رایانامه',
+    placeholder: 'name@example.com',
     // the guide's appendix tables leave the language of E unspecified ("-"),
     // so it is unrestricted; the format is still validated below
     lang: 'All',
@@ -151,6 +154,7 @@ function nationalCodeField(): FieldDef {
     shortName: 'serialNumber',
     configName: 'serialNumber',
     label: 'کد (شناسه) ملی متقاضی (۱۰ رقم)',
+    placeholder: '۱۰ رقم — مثال: 4958927530',
     lang: 'All',
     asn1Type: PRINTABLE,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
@@ -166,6 +170,7 @@ function legalIdField(): FieldDef {
     shortName: 'serialNumber',
     configName: 'serialNumber',
     label: 'شناسه ملی شخص حقوقی — کد ملی شرکت (۱۱ رقم)',
+    placeholder: '۱۱ رقم — مثال: 14000405500',
     lang: 'All',
     asn1Type: PRINTABLE,
     presence: { Gov: 'required', NGO: 'required' },
@@ -181,6 +186,7 @@ function raOfficeIdField(): FieldDef {
     shortName: 'serialNumber',
     configName: 'serialNumber',
     label: 'شناسه دفتر ثبت‌نام',
+    placeholder: 'کد شناسهٔ دفتر',
     lang: 'En',
     asn1Type: PRINTABLE,
     presence: { Gov: 'required', NGO: 'required' },
@@ -202,6 +208,7 @@ function ouFields(orgLabel: string): FieldDef[] {
       shortName: 'OU',
       configName: '1.OU',
       label: orgLabel,
+      placeholder: 'نام سازمان به فارسی',
       lang: 'Fa',
       asn1Type: UTF8,
       presence: { Gov: 'required', NGO: 'required' },
@@ -217,6 +224,7 @@ const provinceCity: FieldDef[] = [
     shortName: 'ST',
     configName: 'ST',
     label: 'نام استان',
+    placeholder: 'مثال: تهران',
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
@@ -227,6 +235,7 @@ const provinceCity: FieldDef[] = [
     shortName: 'L',
     configName: 'L',
     label: 'نام شهرستان',
+    placeholder: 'مثال: تهران',
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
@@ -239,6 +248,7 @@ const orgIdField: FieldDef = {
   shortName: 'organizationIdentifier',
   configName: 'organizationIdentifier',
   label: 'شناسه سازمان (GUID/کد شناسهٔ سازمان)',
+  placeholder: 'کد شناسهٔ سازمان',
   lang: 'All',
   asn1Type: UTF8,
   presence: { Gov: 'required', NGO: 'required' },
@@ -260,6 +270,7 @@ const naturalPersonFields: FieldDef[] = [
     shortName: 'CN',
     configName: 'CN',
     label: 'نام (لاتین)',
+    placeholder: 'حرف اول بزرگ — مثال: Ali',
     lang: 'En',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
@@ -272,6 +283,7 @@ const naturalPersonFields: FieldDef[] = [
     shortName: 'CN',
     configName: 'CN',
     label: 'نام خانوادگی (لاتین)',
+    placeholder: 'حرف اول بزرگ — مثال: Ahmadi',
     lang: 'En',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
@@ -284,6 +296,7 @@ const naturalPersonFields: FieldDef[] = [
     shortName: 'SN',
     configName: 'surname',
     label: 'نام خانوادگی متقاضی (فارسی)',
+    placeholder: 'مثال: احمدی',
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
@@ -294,6 +307,7 @@ const naturalPersonFields: FieldDef[] = [
     shortName: 'GN',
     configName: 'givenName',
     label: 'نام متقاضی (فارسی)',
+    placeholder: 'مثال: علی',
     lang: 'Fa',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required', Una: 'required' },
@@ -304,6 +318,7 @@ const naturalPersonFields: FieldDef[] = [
     shortName: 'title',
     configName: 'title',
     label: 'نقش یا سمت متقاضی در سازمان',
+    placeholder: 'مثال: کارشناس فناوری اطلاعات',
     lang: 'All',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required' },
@@ -326,6 +341,7 @@ const legalPersonFields: FieldDef[] = [
     shortName: 'CN',
     configName: 'CN',
     label: 'نام کامل سازمان (لاتین)',
+    placeholder: 'بدون فاصله، حرف اول بزرگ',
     lang: 'En',
     asn1Type: UTF8,
     presence: { Gov: 'required', NGO: 'required' },

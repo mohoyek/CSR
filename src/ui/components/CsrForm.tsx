@@ -23,8 +23,9 @@ export interface CsrFormProps {
 }
 
 /**
- * فرم ساخت CSR — همه‌چیز در یک صفحه:
- * فرم، دکمهٔ تولید، وضعیت و سه باکس خروجی.
+ * فرم ساخت CSR — چیدمان دوستونی:
+ *   ستون راست: فرم (فیلدها روی هم)
+ *   ستون چپ:  وضعیت و سه باکس خروجی
  */
 export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProps) {
   const [values, setValues] = useState<FormValues>({});
@@ -121,100 +122,104 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
   };
 
   return (
-    <div className="space-y-3">
-      {/* ---- the form ---- */}
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+      {/* ---- ستون راست: فرم ---- */}
       <section className="card p-4">
-        <h2 className="mb-3 text-base font-bold">{profile.title}</h2>
-        <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+        <h2 className="mb-3 text-sm font-bold">{profile.title}</h2>
+
+        <div className="space-y-2">
           {fields.map((f: FieldDef) => {
             const presence = presenceOf(f, certType);
             const res = normalized.results[f.id];
             const value = values[f.id] ?? '';
             return (
-              <Field
-                key={f.id}
-                id={`f-${f.id}`}
-                label={f.label}
-                required={presence === 'required'}
-                error={showErrors(f.id) ? res?.error : undefined}
-                warning={showErrors(f.id) ? res?.warning : undefined}
-              >
-                {({ id, describedBy, invalid }) => (
-                  <input
-                    id={id}
-                    type="text"
-                    className={`input ${invalid ? 'input-error' : ''}`}
-                    value={value}
-                    aria-describedby={describedBy}
-                    aria-invalid={invalid || undefined}
-                    inputMode={f.numeric ? 'numeric' : undefined}
-                    autoComplete="off"
-                    spellCheck={false}
-                    onBlur={() => markTouched(f.id)}
-                    onChange={(e) => setField(f.id, e.target.value)}
-                  />
-                )}
-              </Field>
+              <div key={f.id} className="w-full sm:w-60">
+                <Field
+                  id={`f-${f.id}`}
+                  label={f.label}
+                  required={presence === 'required'}
+                  error={showErrors(f.id) ? res?.error : undefined}
+                  warning={showErrors(f.id) ? res?.warning : undefined}
+                >
+                  {({ id, describedBy, invalid }) => (
+                    <input
+                      id={id}
+                      type="text"
+                      className={`input ${invalid ? 'input-error' : ''}`}
+                      value={value}
+                      placeholder={f.placeholder}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid || undefined}
+                      inputMode={f.numeric ? 'numeric' : undefined}
+                      autoComplete="off"
+                      spellCheck={false}
+                      onBlur={() => markTouched(f.id)}
+                      onChange={(e) => setField(f.id, e.target.value)}
+                    />
+                  )}
+                </Field>
+              </div>
             );
           })}
         </div>
 
         <button
           type="button"
-          className="btn-primary mt-4 w-full py-3"
+          className="btn-primary mt-3 w-full py-2"
           onClick={() => void handleGenerate()}
           disabled={busy}
         >
           {busy ? <Spinner label="در حال تولید…" /> : '🔐 تولید کلیدهای سازمان مودیبان'}
         </button>
         {result || Object.keys(values).length > 0 ? (
-          <button type="button" className="btn-ghost mt-2 w-full" onClick={handleReset}>
+          <button type="button" className="btn-ghost mt-1 w-full" onClick={handleReset}>
             پاک‌سازی فرم
           </button>
         ) : null}
       </section>
 
-      {/* ---- status ---- */}
-      {log.length > 0 ? <StatusLog entries={log} /> : null}
+      {/* ---- ستون چپ: وضعیت و خروجی ---- */}
+      <div className="space-y-3">
+        {log.length > 0 ? <StatusLog entries={log} /> : null}
 
-      {/* ---- output ---- */}
-      {result ? (
-        <section className="card p-4">
-          <h2 className="mb-3 text-base font-bold">خروجی</h2>
-          <div className="grid gap-3 md:grid-cols-3">
-            <OutputBox
-              filename="CSR.txt"
-              title="درخواست گواهی (CSR)"
-              description="برای صدور گواهی بفرستید"
-              content={result.csrPem}
-              onDownload={() => downloadText('CSR.txt', result.csrPem)}
-              onCopy={() => copy('CSR.txt', result.csrPem)}
-            />
-            <OutputBox
-              filename="PrivateKey.key"
-              title="کلید خصوصی"
-              description="محرمانه — به هیچ‌کس ندهید"
-              content={result.privateKeyPem}
-              danger
-              onDownload={() => downloadText('PrivateKey.key', result.privateKeyPem)}
-              onCopy={() => copy('PrivateKey.key', result.privateKeyPem)}
-            />
-            <OutputBox
-              filename="PublicKey.pem"
-              title="کلید عمومی"
-              description="کلید عمومی متناظر"
-              content={result.publicKeyPem}
-              onDownload={() => downloadText('PublicKey.pem', result.publicKeyPem)}
-              onCopy={() => copy('PublicKey.pem', result.publicKeyPem)}
-            />
-          </div>
-          {copied ? (
-            <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400" role="status">
-              «{copied}» در حافظه کپی شد.
-            </p>
-          ) : null}
-        </section>
-      ) : null}
+        {result ? (
+          <section className="card p-4">
+            <h2 className="mb-3 text-sm font-bold">خروجی</h2>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <OutputBox
+                filename="CSR.txt"
+                title="درخواست گواهی (CSR)"
+                description="برای صدور گواهی بفرستید"
+                content={result.csrPem}
+                onDownload={() => downloadText('CSR.txt', result.csrPem)}
+                onCopy={() => copy('CSR.txt', result.csrPem)}
+              />
+              <OutputBox
+                filename="PrivateKey.key"
+                title="کلید خصوصی"
+                description="محرمانه — به هیچ‌کس ندهید"
+                content={result.privateKeyPem}
+                danger
+                onDownload={() => downloadText('PrivateKey.key', result.privateKeyPem)}
+                onCopy={() => copy('PrivateKey.key', result.privateKeyPem)}
+              />
+              <OutputBox
+                filename="PublicKey.pem"
+                title="کلید عمومی"
+                description="کلید عمومی متناظر"
+                content={result.publicKeyPem}
+                onDownload={() => downloadText('PublicKey.pem', result.publicKeyPem)}
+                onCopy={() => copy('PublicKey.pem', result.publicKeyPem)}
+              />
+            </div>
+            {copied ? (
+              <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400" role="status">
+                «{copied}» در حافظه کپی شد.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -254,18 +259,18 @@ function OutputBox({
           ) : null}
         </p>
         <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{description}</p>
-        <div className="mt-2 flex items-center gap-1.5">
+        <p className="ltr mt-1 font-mono text-[10px] text-slate-400">{filename}</p>
+        <div className="mt-1.5 flex items-center gap-1.5">
           <button type="button" className="btn-secondary px-2 py-1 text-[11px]" onClick={onDownload}>
             ⤓ دریافت
           </button>
           <button type="button" className="btn-ghost px-2 py-1 text-[11px]" onClick={onCopy}>
             ⧉ رونوشت
           </button>
-          <span className="ltr mr-auto font-mono text-[10px] text-slate-400">{filename}</span>
         </div>
       </div>
       <pre
-        className="max-h-56 flex-1 overflow-auto bg-slate-50 p-2 font-mono text-[10px] leading-4 text-slate-700 select-none dark:bg-slate-950 dark:text-slate-300"
+        className="max-h-32 flex-1 overflow-auto bg-slate-50 p-2 font-mono text-[10px] leading-4 text-slate-700 select-none dark:bg-slate-950 dark:text-slate-300"
         onContextMenu={(e) => e.preventDefault()}
         onDragStart={(e) => e.preventDefault()}
       >
