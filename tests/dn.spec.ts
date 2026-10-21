@@ -42,11 +42,8 @@ describe('profile 2 (legal person / stamp) subject order', () => {
     expect(rdns[2]).toMatchObject({ value: 'Governmental' });
   });
 
-  it('emits numbered OUs around the org-name OU and config text matches guide format', () => {
-    const rdns = buildSubjectRdns(2, 'NGO', {
-      ...P2_VALUES,
-      ou1: 'واحد فناوری',
-    });
+  it('emits only the organization-name OU (1.OU), as in the guide sample', () => {
+    const rdns = buildSubjectRdns(2, 'NGO', P2_VALUES);
     const cfg = opensslConfig(rdns);
     expect(cfg.split('\n')).toEqual([
       '[req]',
@@ -57,7 +54,6 @@ describe('profile 2 (legal person / stamp) subject order', () => {
       'CN = Iran Center for Ecommerce Development [Stamp]',
       'serialNumber = 14000405500',
       'O = Non-Governmental',
-      '2.OU = واحد فناوری',
       '1.OU = مرکز توسعه تجارت الکترونیکی',
       'L = تهران',
       'ST = تهران',
@@ -65,25 +61,11 @@ describe('profile 2 (legal person / stamp) subject order', () => {
     ].concat(''));
   });
 
-  it('subjects with three units emit 4.OU, 3.OU, 2.OU then 1.OU org', () => {
-    const rdns = buildSubjectRdns(2, 'Gov', {
-      ...P2_VALUES,
-      ou1: 'واحد یک',
-      ou2: 'واحد دو',
-      ou3: 'واحد سه',
-    });
-    expect(rdns.map((r) => r.configName)).toEqual([
-      'CN',
-      'serialNumber',
-      'O',
-      '4.OU',
-      '3.OU',
-      '2.OU',
-      '1.OU',
-      'L',
-      'ST',
-      'C',
-    ]);
+  it('the unit OU fields no longer exist in the profiles', () => {
+    const profile = getProfile(2);
+    expect(profile.fields.some((f) => f.id === 'ou1')).toBe(false);
+    expect(profile.fields.some((f) => f.id === 'ou2')).toBe(false);
+    expect(profile.fields.some((f) => f.id === 'ou3')).toBe(false);
   });
 
   it('optional empty fields are omitted entirely (no empty RDNs)', () => {
@@ -179,6 +161,16 @@ describe('profile 1 (natural person) appendix-1 order with extras after serialNu
     ]);
     expect(rdns.find((r) => r.oid === '2.5.4.97')).toBeUndefined();
     expect(rdns.find((r) => r.oid === '2.5.4.11')).toBeUndefined();
+  });
+});
+
+describe('profile availability', () => {
+  it('profile 1 is only for unaffiliated natural persons', () => {
+    expect(getProfile(1).certTypes).toEqual(['Una']);
+  });
+
+  it('profile 2 is only for non-governmental legal persons', () => {
+    expect(getProfile(2).certTypes).toEqual(['NGO']);
   });
 });
 

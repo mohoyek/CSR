@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CsrForm } from './components/CsrForm';
-import { PfxPanel } from './components/PfxPanel';
-import type { CertType, ProfileId } from '../core/profiles';
+import type { ProfileId } from '../core/profiles';
 import type { GenerateResult } from '../core/x509';
 
-type Tab = ProfileId | 'pfx';
+type Tab = ProfileId;
 
 const THEME_STORAGE_KEY = 'gica-csr:theme';
 
 const PROFILE_TABS: { id: ProfileId; label: string }[] = [
   { id: 1, label: 'شخص حقیقی' },
-  { id: 2, label: 'مهر سازمانی' },
-  { id: 3, label: 'دفتر ثبت‌نام' },
+  { id: 2, label: 'شخص حقوقی' },
 ];
 
 function preferredTheme(): 'light' | 'dark' {
@@ -29,8 +27,7 @@ function preferredTheme(): 'light' | 'dark' {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>(2);
-  const [certType, setCertType] = useState<CertType>('NGO');
+  const [tab, setTab] = useState<Tab>(1);
   const [theme, setTheme] = useState<'light' | 'dark'>(preferredTheme);
   const [unsaved, setUnsaved] = useState(false);
 
@@ -65,11 +62,9 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-extrabold sm:text-lg">
-              ابزار ساخت CSR و PFX
-            </h1>
+            <h1 className="truncate text-base font-extrabold sm:text-lg">ابزار ساخت CSR</h1>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">
               بر اساس راهنمای GICA (GICA.SW.User.CertProfilev1.0، نسخهٔ ۱.۰، ۱۴۰۴/۰۷/۲۵)
             </p>
@@ -85,7 +80,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-4 px-4 py-5">
+      <main className="mx-auto max-w-4xl space-y-4 px-4 py-5">
         {/* one-line confidentiality notice */}
         <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
           <span aria-hidden="true">🔐</span>
@@ -97,7 +92,7 @@ export default function App() {
         </div>
 
         {/* tabs */}
-        <div role="tablist" aria-label="بخش‌های ابزار" className="flex flex-wrap gap-2">
+        <div role="tablist" aria-label="نوع گواهی" className="flex flex-wrap gap-2">
           {PROFILE_TABS.map((t) => (
             <TabButton
               key={t.id}
@@ -106,26 +101,15 @@ export default function App() {
               label={t.label}
             />
           ))}
-          <TabButton
-            active={tab === 'pfx'}
-            onClick={() => setTab('pfx')}
-            label="ساخت PFX"
-          />
         </div>
 
         <div role="tabpanel">
-          {tab === 'pfx' ? (
-            <PfxPanel />
-          ) : (
-            <CsrForm
-              key={tab}
-              profileId={tab}
-              certType={certType}
-              onCertTypeChange={setCertType}
-              onGenerated={handleGenerated}
-              registerUnsaved={registerUnsaved}
-            />
-          )}
+          <CsrForm
+            key={tab}
+            profileId={tab}
+            onGenerated={handleGenerated}
+            registerUnsaved={registerUnsaved}
+          />
         </div>
       </main>
 

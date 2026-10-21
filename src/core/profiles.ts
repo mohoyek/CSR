@@ -17,7 +17,6 @@ import {
 } from './validate';
 import {
   ASSUMED_CN_TEMPLATE_P3,
-  ASSUMED_OU_UNIT_COUNT,
   ASSUMED_PROFILE_1_SUBJECT_ORDER,
   ASSUMED_PROFILE_2_SUBJECT_ORDER,
   ASSUMED_PROFILE_3_SUBJECT_ORDER,
@@ -104,9 +103,6 @@ export type FieldId =
   | 'c'
   | 'o'
   | 'ouOrg'
-  | 'ou1'
-  | 'ou2'
-  | 'ou3'
   | 'cnGiven'
   | 'cnFamily'
   | 'cnOrgNameEn'
@@ -202,6 +198,11 @@ function raOfficeIdField(): FieldDef {
   };
 }
 
+/**
+ * OU سازمان — فقط «نام سازمان» (بدون واحدهای ۱ تا ۳).
+ * واحدهای سازمانی طبق درخواست حذف شده‌اند؛ خروجی فقط یک `1.OU` دارد،
+ * دقیقاً مثل نمونهٔ کاربردی راهنما.
+ */
 function ouFields(orgLabel: string, orgSample: string): FieldDef[] {
   return [
     {
@@ -216,19 +217,6 @@ function ouFields(orgLabel: string, orgSample: string): FieldDef[] {
       ouSlot: 'org',
       sample: orgSample,
     },
-    ...([1, 2, 3] as const).slice(0, ASSUMED_OU_UNIT_COUNT).map(
-      (n): FieldDef => ({
-        id: (`ou${n}` as FieldId),
-        oid: '2.5.4.11',
-        shortName: 'OU',
-        configName: `${n + 1}.OU`,
-        label: `نام واحد سازمانی ${n}`,
-        lang: 'All',
-        asn1Type: UTF8,
-        presence: { Gov: 'optional', NGO: 'optional' },
-        ouSlot: n,
-      })
-    ),
   ];
 }
 
@@ -433,7 +421,8 @@ export const PROFILES: ProfileDef[] = [
   {
     id: 1,
     title: 'گواهی امضای شخص حقیقی',
-    certTypes: ['Gov', 'NGO', 'Una'],
+    // فقط شخص حقیقی مستقل (Unaffiliated)
+    certTypes: ['Una'],
     fields: naturalPersonFields,
     cn: { label: 'CN (نام لاتین + [Sign])', template: CN_TEMPLATE_P1 },
     subjectOrder: [...ASSUMED_PROFILE_1_SUBJECT_ORDER],
@@ -442,8 +431,9 @@ export const PROFILES: ProfileDef[] = [
   },
   {
     id: 2,
-    title: 'گواهی امضای شخص حقوقی / مهر سازمانی',
-    certTypes: ['Gov', 'NGO'],
+    title: 'گواهی امضای شخص حقوقی',
+    // فقط سازمان غیردولتی (Non-Governmental)
+    certTypes: ['NGO'],
     fields: legalPersonFields,
     cn: { label: 'CN (نام کامل لاتین سازمان + [Stamp])', template: CN_TEMPLATE_P2 },
     subjectOrder: [...ASSUMED_PROFILE_2_SUBJECT_ORDER],

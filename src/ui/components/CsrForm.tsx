@@ -14,21 +14,12 @@ import {
   type RdnValue,
 } from '../../core/dn';
 import { generateMaterials, type GenerateResult } from '../../core/x509';
-import { PROVINCES } from '../../core/provinces';
 import { Field, Spinner, StatusLog, copyToClipboard, downloadText, type LogEntry } from './ui';
 import { OrgPresetPanel } from './OrgPresetPanel';
 import { SubjectPreview } from './SubjectPreview';
 
-const CERT_TYPE_LABELS: Record<CertType, string> = {
-  Gov: 'دولتی',
-  NGO: 'غیر دولتی',
-  Una: 'مستقل',
-};
-
 export interface CsrFormProps {
   profileId: ProfileId;
-  certType: CertType;
-  onCertTypeChange: (type: CertType) => void;
   onGenerated: (result: GenerateResult | null) => void;
   registerUnsaved: (dirty: boolean) => void;
 }
@@ -37,13 +28,7 @@ export interface CsrFormProps {
  * فرم ساخت CSR — همه‌چیز در یک صفحه:
  * نوع گواهی، فرم، دکمهٔ تولید، وضعیت و خروجی‌ها.
  */
-export function CsrForm({
-  profileId,
-  certType,
-  onCertTypeChange,
-  onGenerated,
-  registerUnsaved,
-}: CsrFormProps) {
+export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProps) {
   const [values, setValues] = useState<FormValues>({});
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,6 +40,8 @@ export function CsrForm({
   const [submitted, setSubmitted] = useState(false);
 
   const profile = getProfile(profileId);
+  /** هر پروفایل فقط یک نوع گواهی دارد (شخص حقیقی: مستقل، شخص حقوقی: غیردولتی) */
+  const certType: CertType = profile.certTypes[0]!;
   const fields = useMemo(() => visibleFields(profile, certType), [profile, certType]);
   const normalized = useMemo(
     () => normalizeAndValidate(profile, certType, values),
@@ -137,35 +124,6 @@ export function CsrForm({
 
   return (
     <div className="space-y-3">
-      {/* ---- type of certificate ---- */}
-      <section className="card p-4">
-        <fieldset>
-          <legend className="label">نوع گواهی</legend>
-          <div className="flex flex-wrap gap-2">
-            {profile.certTypes.map((t) => (
-              <label
-                key={t}
-                className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${
-                  certType === t
-                    ? 'border-brand-600 bg-brand-50 font-semibold text-brand-900 dark:border-brand-500 dark:bg-brand-950/40 dark:text-brand-100'
-                    : 'border-slate-300 text-slate-600 hover:border-slate-400 dark:border-slate-700 dark:text-slate-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="certType"
-                  checked={certType === t}
-                  onChange={() => {
-                    onCertTypeChange(t);
-                    setResult(null);
-                  }}
-                />
-                {CERT_TYPE_LABELS[t]}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      </section>
 
       {/* ---- the form ---- */}
       <section className="card p-4">
@@ -175,7 +133,6 @@ export function CsrForm({
             const presence = presenceOf(f, certType);
             const res = normalized.results[f.id];
             const value = values[f.id] ?? '';
-            const isProvince = f.id === 'st';
             return (
               <Field
                 key={f.id}
@@ -194,40 +151,21 @@ export function CsrForm({
                       : undefined)
                 }
               >
-                {({ id, describedBy, invalid }) =>
-                  isProvince ? (
-                    <select
-                      id={id}
-                      className={`input ${invalid ? 'input-error' : ''}`}
-                      value={value}
-                      aria-describedby={describedBy}
-                      aria-invalid={invalid || undefined}
-                      onBlur={() => markTouched(f.id)}
-                      onChange={(e) => setField(f.id, e.target.value)}
-                    >
-                      <option value="">— انتخاب کنید —</option>
-                      {PROVINCES.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      id={id}
-                      type="text"
-                      className={`input ${invalid ? 'input-error' : ''}`}
-                      value={value}
-                      aria-describedby={describedBy}
-                      aria-invalid={invalid || undefined}
-                      inputMode={f.numeric ? 'numeric' : undefined}
-                      autoComplete="off"
-                      spellCheck={false}
-                      onBlur={() => markTouched(f.id)}
-                      onChange={(e) => setField(f.id, e.target.value)}
-                    />
-                  )
-                }
+                {({ id, describedBy, invalid }) => (
+                  <input
+                    id={id}
+                    type="text"
+                    className={`input ${invalid ? 'input-error' : ''}`}
+                    value={value}
+                    aria-describedby={describedBy}
+                    aria-invalid={invalid || undefined}
+                    inputMode={f.numeric ? 'numeric' : undefined}
+                    autoComplete="off"
+                    spellCheck={false}
+                    onBlur={() => markTouched(f.id)}
+                    onChange={(e) => setField(f.id, e.target.value)}
+                  />
+                )}
               </Field>
             );
           })}
@@ -320,9 +258,8 @@ export function CsrForm({
       <OrgPresetPanel
         values={values as Record<string, string>}
         certType={certType}
-        onApply={(next, nextType) => {
+        onApply={(next) => {
           setValues((prev) => ({ ...prev, ...next }));
-          onCertTypeChange(nextType);
         }}
       />
     </div>

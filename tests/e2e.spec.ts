@@ -92,20 +92,22 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
 
     await page.goto(baseUrl, { waitUntil: 'networkidle0' });
 
-    /* ---- pick the legal-person profile (the default tab) ---- */
+    /* ---- pick the legal-person profile (شخص حقوقی) ---- */
+    await page.waitForSelector('[role="tab"]');
+    const tabs = await page.$$('[role="tab"]');
+    await tabs[1]!.click();
     await page.waitForSelector('#f-serialNumber');
     const values: Record<string, string> = {
       'f-serialNumber': '14000405500',
       'f-cnOrgNameEn': 'Iran Center for Ecommerce Development',
       'f-ouOrg': 'مرکز توسعه تجارت الکترونیکی',
       'f-l': 'تهران',
+      'f-st': 'تهران',
     };
     for (const [id, value] of Object.entries(values)) {
       await page.focus(`#${id}`);
       await page.type(`#${id}`, value);
     }
-    // the province is a dropdown
-    await page.select('#f-st', 'تهران');
 
     // the live preview must show the subject
     await page.click('summary ::-p-text(پیش‌نمایش موضوع گواهی)');
@@ -167,98 +169,4 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     expect(consoleErrors).toEqual([]);
     await page.close();
   }, 120_000);
-
-  it('the PFX tab builds a keystore from an issued certificate', async () => {
-    const page = await browser!.newPage();
-    await page.goto(baseUrl, { waitUntil: 'networkidle0' });
-
-    // switch to the PFX tab
-    await page.waitForSelector('[role="tab"]');
-    const tabs = await page.$$('[role="tab"]');
-    await tabs[3]!.click(); // the PFX tab
-    await page.waitForFunction(() => document.body.innerText.includes('ساخت keystore.pfx'));
-
-    // the tab must be independent: no CSR result is carried over
-    const text = await page.evaluate(() => document.body.textContent ?? '');
-    expect(text).not.toContain('-----BEGIN CERTIFICATE REQUEST-----');
-    expect(text).not.toContain('-----BEGIN ENCRYPTED PRIVATE KEY-----');
-
-    // build the inputs in the page — the certificate and the key must belong
-    // together, so both are derived from the same key pair
-    const { exportPkcs8Der, generateKeyPair, privateKeyPem } = await import('../src/core/keys');
-    const { selfSignedCertDer } = await import('./helpers/selfSigned');
-
-    const pair = await generateKeyPair();
-    const pkcs8 = await exportPkcs8Der(pair.privateKey);
-    const keyPemText = privateKeyPem(pkcs8);
-    const certDer = await selfSignedCertDer(pair);
-
-    const dir = mkdtempSync(join(tmpdir(), 'gica-e2e-pfx-'));
-    const { writeFileSync } = await import('node:fs');
-    const certPath = join(dir, 'certificate.crt');
-    const keyPath = join(dir, 'mykey.key');
-    writeFileSync(certPath, Buffer.from(certDer));
-    writeFileSync(keyPath, keyPemText, 'utf8');
-
-    const fileInputs = await page.$$('input[type="file"]');
-    expect(fileInputs.length).toBeGreaterThanOrEqual(3);
-    await fileInputs[0]!.uploadFile(certPath);
-    await fileInputs[1]!.uploadFile(keyPath);
-    await page.waitForFunction(() => document.body.innerText.includes('certificate.crt'));
-
-    // enter the export password
-    await page.focus('#export-password');
-    await page.type('#export-password', 'Export Pass 123');
-    await page.focus('#export-confirm');
-    await page.type('#export-confirm', 'Export Pass 123');
-
-    // building the PFX must succeed (the key/cert match is checked while building)
-    await page.click('button ::-p-text(ساخت keystore.pfx)');
-    await page.waitForFunction(
-      () => document.body.innerText.includes('فایل keystore.pfx ساخته و دریافت شد'),
-      { timeout: 120_000 }
-    );
-    // the status panel confirms that the public key matched
-    await page.waitForFunction(() =>
-      document.body.innerText.includes('کلید عمومی گواهی با کلید خصوصی یکسان است')
-    );
-
-    await page.close();
-  }, 180_000);
-
-  it('reports a clear error when the certificate does not match the key', async () => {
-    const page = await browser!.newPage();
-    await page.goto(baseUrl, { waitUntil: 'networkidle0' });
-    const tabs = await page.$$('[role="tab"]');
-    await tabs[3]!.click(); // the PFX tab
-    await page.waitForFunction(() => document.body.innerText.includes('ساخت keystore.pfx'));
-
-    const { exportPkcs8Der, generateKeyPair, privateKeyPem } = await import('../src/core/keys');
-    const { selfSignedCertDer } = await import('./helpers/selfSigned');
-
-    // key A for the private key file …
-    const keyA = await generateKeyPair();
-    const encPem = privateKeyPem(await exportPkcs8Der(keyA.privateKey));
-    // … and key B for the certificate
-    const keyB = await generateKeyPair();
-    const certDer = await selfSignedCertDer(keyB);
-
-    const dir = mkdtempSync(join(tmpdir(), 'gica-e2e-mismatch-'));
-    const { writeFileSync } = await import('node:fs');
-    const certPath = join(dir, 'certificate.crt');
-    const keyPath = join(dir, 'mykey.key');
-    writeFileSync(certPath, Buffer.from(certDer));
-    writeFileSync(keyPath, encPem, 'utf8');
-
-    const fileInputs = await page.$$('input[type="file"]');
-    await fileInputs[0]!.uploadFile(certPath);
-    await fileInputs[1]!.uploadFile(keyPath);
-    await page.waitForFunction(() => document.body.innerText.includes('certificate.crt'));
-    await page.click('button ::-p-text(ساخت keystore.pfx)');
-    await page.waitForFunction(
-      () => document.body.innerText.includes('یکسان نیست'),
-      { timeout: 60_000 }
-    );
-    await page.close();
-  }, 180_000);
 });
