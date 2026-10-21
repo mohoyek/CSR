@@ -15,7 +15,6 @@ import {
 } from '../../core/dn';
 import { generateMaterials, type GenerateResult } from '../../core/x509';
 import { Field, Spinner, StatusLog, copyToClipboard, downloadText, type LogEntry } from './ui';
-import { SubjectPreview } from './SubjectPreview';
 
 export interface CsrFormProps {
   profileId: ProfileId;
@@ -25,7 +24,7 @@ export interface CsrFormProps {
 
 /**
  * فرم ساخت CSR — همه‌چیز در یک صفحه:
- * نوع گواهی، فرم، دکمهٔ تولید، وضعیت و خروجی‌ها.
+ * فرم، دکمهٔ تولید، وضعیت و سه باکس خروجی.
  */
 export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProps) {
   const [values, setValues] = useState<FormValues>({});
@@ -123,7 +122,6 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
 
   return (
     <div className="space-y-3">
-
       {/* ---- the form ---- */}
       <section className="card p-4">
         <h2 className="mb-3 text-base font-bold">{profile.title}</h2>
@@ -183,28 +181,31 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
       {result ? (
         <section className="card p-4">
           <h2 className="mb-3 text-base font-bold">خروجی</h2>
-          <div className="divide-y divide-slate-200 dark:divide-slate-700">
-            <OutputRow
-              filename="mycsr.txt"
+          <div className="grid gap-3 md:grid-cols-3">
+            <OutputBox
+              filename="CSR.txt"
               title="درخواست گواهی (CSR)"
-              description="این فایل را برای صدور گواهی به مرجع صدور (CA) بفرستید."
-              onDownload={() => downloadText('mycsr.txt', result.csrPem)}
-              onCopy={() => copy('mycsr.txt', result.csrPem)}
+              description="برای صدور گواهی بفرستید"
+              content={result.csrPem}
+              onDownload={() => downloadText('CSR.txt', result.csrPem)}
+              onCopy={() => copy('CSR.txt', result.csrPem)}
             />
-            <OutputRow
-              filename="mykey.key"
+            <OutputBox
+              filename="PrivateKey.key"
               title="کلید خصوصی"
-              description="محرمانه — فقط نزد خودتان نگه دارید و به هیچ‌کس ندهید."
+              description="محرمانه — به هیچ‌کس ندهید"
+              content={result.privateKeyPem}
               danger
-              onDownload={() => downloadText('mykey.key', result.privateKeyPem)}
-              onCopy={() => copy('mykey.key', result.privateKeyPem)}
+              onDownload={() => downloadText('PrivateKey.key', result.privateKeyPem)}
+              onCopy={() => copy('PrivateKey.key', result.privateKeyPem)}
             />
-            <OutputRow
-              filename="mypublickey.pem"
+            <OutputBox
+              filename="PublicKey.pem"
               title="کلید عمومی"
-              description="کلید عمومی متناظر با کلید خصوصی."
-              onDownload={() => downloadText('mypublickey.pem', result.publicKeyPem)}
-              onCopy={() => copy('mypublickey.pem', result.publicKeyPem)}
+              description="کلید عمومی متناظر"
+              content={result.publicKeyPem}
+              onDownload={() => downloadText('PublicKey.pem', result.publicKeyPem)}
+              onCopy={() => copy('PublicKey.pem', result.publicKeyPem)}
             />
           </div>
           {copied ? (
@@ -212,47 +213,21 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
               «{copied}» در حافظه کپی شد.
             </p>
           ) : null}
-
-          <details className="mt-3">
-            <summary className="cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-300">
-              نمایش محتوای فایل‌ها
-            </summary>
-            <div className="mt-2 space-y-2">
-              <div>
-                <p className="mb-1 text-xs font-semibold">mycsr.txt</p>
-                <pre className="code max-h-64 overflow-y-auto">{result.csrPem}</pre>
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-semibold">mykey.key</p>
-                <pre className="code max-h-64 overflow-y-auto">{result.privateKeyPem}</pre>
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-semibold">mypublickey.pem</p>
-                <pre className="code max-h-64 overflow-y-auto">{result.publicKeyPem}</pre>
-              </div>
-            </div>
-          </details>
         </section>
       ) : null}
-
-      {/* ---- rarely used: preview and organization preset ---- */}
-      <details className="rounded-xl border border-slate-200 dark:border-slate-700">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">
-          پیش‌نمایش موضوع گواهی (Subject) و معادل config.txt
-        </summary>
-        <div className="border-t border-slate-200 p-4 dark:border-slate-700">
-          <SubjectPreview rdns={rdns} />
-        </div>
-      </details>
-
     </div>
   );
 }
 
-function OutputRow({
+/**
+ * یک باکس خروجی: دکمه‌ها بالای باکس، و محتوای فایل غیرقابل انتخاب
+ * (بدون امکان کپی با ماوس و بدون منوی راست‌کلیک).
+ */
+function OutputBox({
   filename,
   title,
   description,
+  content,
   onDownload,
   onCopy,
   danger,
@@ -260,28 +235,42 @@ function OutputRow({
   filename: string;
   title: string;
   description: string;
+  content: string;
   onDownload: () => void;
   onCopy: () => void;
   danger?: boolean;
 }) {
+  const boxClass = danger
+    ? 'border-red-300 dark:border-red-900'
+    : 'border-slate-200 dark:border-slate-700';
+
   return (
-    <div className="flex flex-wrap items-center gap-3 py-3">
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold">
+    <div className={`flex flex-col overflow-hidden rounded-xl border ${boxClass}`}>
+      <div className="border-b border-slate-200 p-2 dark:border-slate-700">
+        <p className="text-xs font-bold">
           {title}
-          {danger ? <span className="mr-2 text-xs text-red-600 dark:text-red-400">محرمانه</span> : null}
+          {danger ? (
+            <span className="mr-1.5 text-[10px] text-red-600 dark:text-red-400">محرمانه</span>
+          ) : null}
         </p>
-        <p className="ltr text-xs font-mono text-slate-500 dark:text-slate-400">{filename}</p>
-        <p className="text-xs text-slate-600 dark:text-slate-300">{description}</p>
+        <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{description}</p>
+        <div className="mt-2 flex items-center gap-1.5">
+          <button type="button" className="btn-secondary px-2 py-1 text-[11px]" onClick={onDownload}>
+            ⤓ دریافت
+          </button>
+          <button type="button" className="btn-ghost px-2 py-1 text-[11px]" onClick={onCopy}>
+            ⧉ رونوشت
+          </button>
+          <span className="ltr mr-auto font-mono text-[10px] text-slate-400">{filename}</span>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={onDownload}>
-          ⤓ دریافت
-        </button>
-        <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={onCopy}>
-          ⧉ رونوشت
-        </button>
-      </div>
+      <pre
+        className="max-h-56 flex-1 overflow-auto bg-slate-50 p-2 font-mono text-[10px] leading-4 text-slate-700 select-none dark:bg-slate-950 dark:text-slate-300"
+        onContextMenu={(e) => e.preventDefault()}
+        onDragStart={(e) => e.preventDefault()}
+      >
+        {content}
+      </pre>
     </div>
   );
 }

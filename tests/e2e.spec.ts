@@ -109,18 +109,6 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
       await page.type(`#${id}`, value);
     }
 
-    // the live preview must show the subject
-    await page.click('summary ::-p-text(پیش‌نمایش موضوع گواهی)');
-    await page.waitForFunction(() =>
-      document.body.innerText.includes('IranCenterForEcommerceDevelopment [Stamp]')
-    );
-    const bodyText = await page.evaluate(() => document.body.innerText);
-    expect(bodyText).toContain('CN=IranCenterForEcommerceDevelopment [Stamp]');
-    expect(bodyText).toContain('serialNumber=14000405500');
-    expect(bodyText).toContain('C=IR');
-    // the equivalent config.txt of the guide
-    expect(bodyText).toContain('1.OU = مرکز توسعه تجارت الکترونیکی');
-
     /* ---- generate (no passphrase needed) ---- */
     await page.click('button ::-p-text(تولید کلیدهای سازمان مودیبان)');
 
@@ -134,9 +122,9 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     expect(resultText).toContain('-----BEGIN PRIVATE KEY-----');
     expect(resultText).toContain('-----BEGIN PUBLIC KEY-----');
     // the three file names of the guide
-    expect(resultText).toContain('mycsr.txt');
-    expect(resultText).toContain('mykey.key');
-    expect(resultText).toContain('mypublickey.pem');
+    expect(resultText).toContain('CSR.txt');
+    expect(resultText).toContain('PrivateKey.key');
+    expect(resultText).toContain('PublicKey.pem');
     // the status panel reports success
     await page.waitForFunction(() =>
       document.body.innerText.includes('کلید، CSR و کلید عمومی با موفقیت ساخته')
