@@ -158,7 +158,7 @@ describe.skipIf(!HAS_OPENSSL)('OpenSSL interop', () => {
     const rdns = buildSubjectRdns(2, 'NGO', P2_VALUES);
 
     // --- ours ---
-    const ours = await generateMaterials(rdns, 'interop pass phrase 123');
+    const ours = await generateMaterials(rdns);
     const ourCsrPath = join(dir, 'mycsr.txt');
     writeFileSync(ourCsrPath, ours.csrPem, 'utf8');
 
@@ -218,7 +218,7 @@ describe.skipIf(!HAS_OPENSSL)('OpenSSL interop', () => {
   it('profile 1: OpenSSL verifies the CSR and shows the Persian text and 2.5.4.97', async () => {
     const dir = tempDir();
     const rdns = buildSubjectRdns(1, 'Gov', P1_VALUES);
-    const ours = await generateMaterials(rdns, 'interop pass phrase 123');
+    const ours = await generateMaterials(rdns);
     const csrPath = join(dir, 'mycsr.txt');
     writeFileSync(csrPath, ours.csrPem, 'utf8');
 
@@ -240,7 +240,7 @@ describe.skipIf(!HAS_OPENSSL)('OpenSSL interop', () => {
   it('profile 3: the CN template and RDN order match OpenSSL', async () => {
     const dir = tempDir();
     const rdns = buildSubjectRdns(3, 'NGO', P3_VALUES);
-    const ours = await generateMaterials(rdns, 'interop pass phrase 123');
+    const ours = await generateMaterials(rdns);
     const ourCsrPath = join(dir, 'mycsr.txt');
     writeFileSync(ourCsrPath, ours.csrPem, 'utf8');
 
@@ -270,34 +270,33 @@ describe.skipIf(!HAS_OPENSSL)('OpenSSL interop', () => {
     );
   }, 60_000);
 
-  it('the encrypted private key is readable with `openssl pkey`', async () => {
+  it('the private key file is readable with `openssl pkey`', async () => {
     const dir = tempDir();
     const rdns = buildSubjectRdns(2, 'NGO', P2_VALUES);
-    const ours = await generateMaterials(rdns, 'interop pass phrase 123');
+    const ours = await generateMaterials(rdns);
     const keyPath = join(dir, 'mykey.key');
-    writeFileSync(keyPath, ours.encryptedKeyPem, 'utf8');
+    writeFileSync(keyPath, ours.privateKeyPem, 'utf8');
 
-    const out = openssl([
-      'pkey',
-      '-in',
-      keyPath,
-      '-passin',
-      'pass:interop pass phrase 123',
-      '-noout',
-      '-text',
-    ]);
+    // the key is a plain PKCS#8 — exactly like the guide's `-nodes` output
+    expect(ours.privateKeyPem.startsWith('-----BEGIN PRIVATE KEY-----')).toBe(true);
+
+    const out = openssl(['pkey', '-in', keyPath, '-noout', '-text']);
     expect(out).toContain('Private-Key: (2048 bit');
 
-    // a wrong passphrase must fail
-    expect(() =>
-      openssl(['pkey', '-in', keyPath, '-passin', 'pass:wrong passphrase', '-noout'])
-    ).toThrow();
+    // and the public key file must be exactly what OpenSSL derives from it
+    // (OpenSSL on Windows writes CRLF, so the line endings are normalized)
+    const pubPath = join(dir, 'mypublickey.pem');
+    writeFileSync(pubPath, ours.publicKeyPem, 'utf8');
+    const derived = openssl(['pkey', '-in', keyPath, '-pubout'])
+      .replace(/\r\n/g, '\n')
+      .trim();
+    expect(derived).toBe(ours.publicKeyPem.trim());
   }, 60_000);
 
   it('the public key file is a valid SPKI PEM', async () => {
     const dir = tempDir();
     const rdns = buildSubjectRdns(2, 'NGO', P2_VALUES);
-    const ours = await generateMaterials(rdns, 'interop pass phrase 123');
+    const ours = await generateMaterials(rdns);
     const pubPath = join(dir, 'mypublickey.pem');
     writeFileSync(pubPath, ours.publicKeyPem, 'utf8');
     const out = openssl(['pkey', '-pubin', '-in', pubPath, '-noout', '-text']);

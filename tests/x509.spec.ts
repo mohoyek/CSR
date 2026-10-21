@@ -93,9 +93,10 @@ describe('CSR generation', () => {
 describe('generateMaterials (full self-check path)', () => {
   it('produces the three guide artifacts and passes all self-checks', async () => {
     const rdns = buildSubjectRdns(2, 'NGO', P2_VALUES);
-    const result = await generateMaterials(rdns, 'correct horse battery');
+    const result = await generateMaterials(rdns);
     expect(result.csrPem.startsWith('-----BEGIN CERTIFICATE REQUEST-----')).toBe(true);
-    expect(result.encryptedKeyPem.startsWith('-----BEGIN ENCRYPTED PRIVATE KEY-----')).toBe(true);
+    // the private key is a plain PKCS#8, exactly like the guide's `-nodes` output
+    expect(result.privateKeyPem.startsWith('-----BEGIN PRIVATE KEY-----')).toBe(true);
     expect(result.publicKeyPem.startsWith('-----BEGIN PUBLIC KEY-----')).toBe(true);
     expect(result.selfCheck.csrSignatureVerified).toBe(true);
     expect(result.selfCheck.keyReimportVerified).toBe(true);
@@ -103,13 +104,13 @@ describe('generateMaterials (full self-check path)', () => {
     expect(subjectLine(rdns)).toContain('Iran Center for Ecommerce Development [Stamp]');
   });
 
-  it('rejects a wrong passphrase on the produced key file', async () => {
+  it('the produced key file is still accepted by the encrypted-PKCS#8 reader', async () => {
     const rdns = buildSubjectRdns(2, 'NGO', P2_VALUES);
-    const result = await generateMaterials(rdns, 'correct horse battery');
-    const encDer = result.encryptedKeyPem
-      ? ensureDer(result.encryptedKeyPem)
-      : null;
-    await expect(decryptEncryptedPkcs8(encDer!, 'totally wrong pass')).rejects.toThrow();
+    const result = await generateMaterials(rdns);
+    // an unencrypted PKCS#8 is read as-is (no passphrase)
+    const der = ensureDer(result.privateKeyPem);
+    const reimported = await importPkcs8Der(der);
+    expect(reimported.type).toBe('private');
   }, 20_000);
 });
 

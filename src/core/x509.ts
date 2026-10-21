@@ -3,13 +3,11 @@ import * as pkijs from 'pkijs';
 import { encodeRdnValue, type RdnValue } from './dn';
 import {
   canonicalSpkiFromPkcs8,
-  decryptEncryptedPkcs8,
-  encryptPkcs8,
-  encryptedPkcs8Pem,
   exportPkcs8Der,
   exportSpkiDer,
   generateKeyPair,
   pemEncode,
+  privateKeyPem,
   parsePem,
   spkiPem,
   toArrayBuffer,
@@ -19,13 +17,13 @@ import {
  * PKCS#10 CSR generation with RSASSA-PKCS1-v1_5 / SHA-256 over WebCrypto,
  * plus the self-checks required before results are shown to the user:
  *   1. the CSR signature verifies against its own embedded public key
- *   2. the encrypted key re-imports with the passphrase
- *   3. the re-imported key's SPKI is byte-identical to the exported public key
+ *   2. the private key re-imports and its SPKI is byte-identical to the
+ *      exported public key
  */
 
 export interface GenerateResult {
   csrPem: string;
-  encryptedKeyPem: string;
+  privateKeyPem: string;
   publicKeyPem: string;
   selfCheck: {
     csrSignatureVerified: boolean;
@@ -100,10 +98,9 @@ export async function verifyCsrDer(csrDer: Uint8Array): Promise<boolean> {
   return crypto.subtle.verify('RSASSA-PKCS1-v1_5', pubKey, toArrayBuffer(sig), toArrayBuffer(tbsDer));
 }
 
-/** Generate all three artifacts (CSR, encrypted key, public key) with self-checks */
+/** Generate all three artifacts (CSR, private key, public key) with self-checks */
 export async function generateMaterials(
   rdns: RdnValue[],
-  passphrase: string,
   onProgress?: (progress: Progress) => void
 ): Promise<GenerateResult> {
   const report = (level: ProgressLevel, text: string) => onProgress?.({ level, text });
@@ -114,10 +111,9 @@ export async function generateMaterials(
   report('info', 'در حال ساخت درخواست گواهی (CSR)…');
   const csrPem = await buildCsrPem(rdns, keyPair);
 
-  report('info', 'در حال رمزنگاری کلید خصوصی…');
+  report('info', 'در حال آماده‌سازی کلید خصوصی…');
   const pkcs8 = await exportPkcs8Der(keyPair.privateKey);
-  const encDer = await encryptPkcs8(pkcs8, passphrase);
-  const encryptedKeyPem = encryptedPkcs8Pem(encDer);
+  const privateKeyPemText = privateKeyPem(pkcs8);
 
   const spki = await exportSpkiDer(keyPair.publicKey);
   const publicKeyPem = spkiPem(spki);
@@ -126,11 +122,10 @@ export async function generateMaterials(
   report('info', 'در حال بررسی امضای CSR…');
   const csrVerified = await verifyCsrDer(pkiCsrDerFromPem(csrPem));
 
-  report('info', 'در حال باز کردن کلید رمزنگذاری‌شده…');
+  report('info', 'در حال بررسی کلید خصوصی…');
   let keyReimport = false;
   try {
-    const decPem = await decryptEncryptedPkcs8(encDer, passphrase);
-    const canonical = await canonicalSpkiFromPkcs8(decPem);
+    const canonical = await canonicalSpkiFromPkcs8(pkcs8);
     keyReimport = bytesEqual(canonical, spki);
   } catch {
     keyReimport = false;
@@ -145,7 +140,7 @@ export async function generateMaterials(
 
   return {
     csrPem,
-    encryptedKeyPem,
+    privateKeyPem: privateKeyPemText,
     publicKeyPem,
     selfCheck: { csrSignatureVerified: csrVerified, keyReimportVerified: keyReimport },
   };

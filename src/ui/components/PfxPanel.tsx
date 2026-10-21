@@ -28,7 +28,6 @@ export function PfxPanel() {
   const [chainDers, setChainDers] = useState<Uint8Array[]>([]);
   const [keyName, setKeyName] = useState<string | null>(null);
   const [keyPem, setKeyPem] = useState<string>('');
-  const [keyPassphrase, setKeyPassphrase] = useState('');
   const [exportPassword, setExportPassword] = useState('');
   const [exportConfirm, setExportConfirm] = useState('');
   const [legacy, setLegacy] = useState(false);
@@ -111,7 +110,7 @@ export function PfxPanel() {
       }
 
       push({ level: 'info', text: 'در حال باز کردن کلید خصوصی…' });
-      const { pkcs8 } = await loadPrivateKeyFile(keyPem, keyPassphrase);
+      const { pkcs8 } = await loadPrivateKeyFile(keyPem, '');
 
       push({ level: 'info', text: 'در حال بررسی تطابق کلید و گواهی…' });
       const matches = await keyMatchesCertificate(certDer, pkcs8);
@@ -139,7 +138,7 @@ export function PfxPanel() {
     } finally {
       setBusy(false);
     }
-  }, [certDer, keyPem, keyPassphrase, passwordOk, confirmOk, exportPassword, legacy, chainDers, push]);
+  }, [certDer, keyPem, passwordOk, confirmOk, exportPassword, legacy, chainDers, push]);
 
   return (
     <div className="space-y-4">
@@ -164,7 +163,7 @@ export function PfxPanel() {
             />
             <FileRow
               label="کلید خصوصی (mykey.key)"
-              hint="همان فایل رمزگذاری‌شده‌ای که هنگام ساخت CSR گرفتید."
+              hint="همان فایلی که هنگام ساخت CSR گرفتید."
               picked={keyName}
               onPick={() => keyInputRef.current?.click()}
               inputRef={keyInputRef}
@@ -181,23 +180,6 @@ export function PfxPanel() {
               onFile={(f) => void readChain(f)}
             />
 
-            <Field
-              id="key-passphrase"
-              label="رمز عبور فایل کلید خصوصی"
-              hint="همان رمزی که هنگام ساخت CSR انتخاب کردید."
-            >
-              {({ id, describedBy }) => (
-                <input
-                  id={id}
-                  type="password"
-                  className="input"
-                  value={keyPassphrase}
-                  autoComplete="off"
-                  aria-describedby={describedBy}
-                  onChange={(e) => setKeyPassphrase(e.target.value)}
-                />
-              )}
-            </Field>
           </div>
 
           {/* export password */}

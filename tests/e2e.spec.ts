@@ -99,12 +99,13 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
       'f-cnOrgNameEn': 'Iran Center for Ecommerce Development',
       'f-ouOrg': 'مرکز توسعه تجارت الکترونیکی',
       'f-l': 'تهران',
-      'f-st': 'تهران',
     };
     for (const [id, value] of Object.entries(values)) {
       await page.focus(`#${id}`);
       await page.type(`#${id}`, value);
     }
+    // the province is a dropdown
+    await page.select('#f-st', 'تهران');
 
     // the live preview must show the subject
     await page.click('summary ::-p-text(پیش‌نمایش موضوع گواهی)');
@@ -118,12 +119,8 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     // the equivalent config.txt of the guide
     expect(bodyText).toContain('1.OU = مرکز توسعه تجارت الکترونیکی');
 
-    /* ---- passphrase + generate ---- */
-    await page.focus('#passphrase');
-    await page.type('#passphrase', 'Test Passphrase 123');
-    await page.focus('#passphrase-confirm');
-    await page.type('#passphrase-confirm', 'Test Passphrase 123');
-    await page.click('button ::-p-text(تولید CSR و کلیدها)');
+    /* ---- generate (no passphrase needed) ---- */
+    await page.click('button ::-p-text(تولید کلیدهای سازمان مودیبان)');
 
     /* ---- results ---- */
     await page.waitForFunction(
@@ -132,7 +129,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     );
     const resultText = await page.evaluate(() => document.body.textContent ?? '');
     expect(resultText).toContain('-----BEGIN CERTIFICATE REQUEST-----');
-    expect(resultText).toContain('-----BEGIN ENCRYPTED PRIVATE KEY-----');
+    expect(resultText).toContain('-----BEGIN PRIVATE KEY-----');
     expect(resultText).toContain('-----BEGIN PUBLIC KEY-----');
     // the three file names of the guide
     expect(resultText).toContain('mycsr.txt');
@@ -188,14 +185,12 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
 
     // build the inputs in the page — the certificate and the key must belong
     // together, so both are derived from the same key pair
-    const { encryptPkcs8, encryptedPkcs8Pem, exportPkcs8Der, generateKeyPair } = await import(
-      '../src/core/keys'
-    );
+    const { exportPkcs8Der, generateKeyPair, privateKeyPem } = await import('../src/core/keys');
     const { selfSignedCertDer } = await import('./helpers/selfSigned');
 
     const pair = await generateKeyPair();
     const pkcs8 = await exportPkcs8Der(pair.privateKey);
-    const encryptedKeyPem = encryptedPkcs8Pem(await encryptPkcs8(pkcs8, 'Test Passphrase 123'));
+    const keyPemText = privateKeyPem(pkcs8);
     const certDer = await selfSignedCertDer(pair);
 
     const dir = mkdtempSync(join(tmpdir(), 'gica-e2e-pfx-'));
@@ -203,7 +198,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     const certPath = join(dir, 'certificate.crt');
     const keyPath = join(dir, 'mykey.key');
     writeFileSync(certPath, Buffer.from(certDer));
-    writeFileSync(keyPath, encryptedKeyPem, 'utf8');
+    writeFileSync(keyPath, keyPemText, 'utf8');
 
     const fileInputs = await page.$$('input[type="file"]');
     expect(fileInputs.length).toBeGreaterThanOrEqual(3);
@@ -211,9 +206,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     await fileInputs[1]!.uploadFile(keyPath);
     await page.waitForFunction(() => document.body.innerText.includes('certificate.crt'));
 
-    // enter the key passphrase and the export password
-    await page.focus('#key-passphrase');
-    await page.type('#key-passphrase', 'Test Passphrase 123');
+    // enter the export password
     await page.focus('#export-password');
     await page.type('#export-password', 'Export Pass 123');
     await page.focus('#export-confirm');
@@ -240,16 +233,12 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     await tabs[3]!.click(); // the PFX tab
     await page.waitForFunction(() => document.body.innerText.includes('ساخت keystore.pfx'));
 
-    const { encryptPkcs8, encryptedPkcs8Pem, exportPkcs8Der, generateKeyPair } = await import(
-      '../src/core/keys'
-    );
+    const { exportPkcs8Der, generateKeyPair, privateKeyPem } = await import('../src/core/keys');
     const { selfSignedCertDer } = await import('./helpers/selfSigned');
 
     // key A for the private key file …
     const keyA = await generateKeyPair();
-    const encPem = encryptedPkcs8Pem(
-      await encryptPkcs8(await exportPkcs8Der(keyA.privateKey), 'Test Passphrase 123')
-    );
+    const encPem = privateKeyPem(await exportPkcs8Der(keyA.privateKey));
     // … and key B for the certificate
     const keyB = await generateKeyPair();
     const certDer = await selfSignedCertDer(keyB);
@@ -265,9 +254,6 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     await fileInputs[0]!.uploadFile(certPath);
     await fileInputs[1]!.uploadFile(keyPath);
     await page.waitForFunction(() => document.body.innerText.includes('certificate.crt'));
-    await page.focus('#key-passphrase');
-    await page.type('#key-passphrase', 'Test Passphrase 123');
-
     await page.click('button ::-p-text(ساخت keystore.pfx)');
     await page.waitForFunction(
       () => document.body.innerText.includes('یکسان نیست'),

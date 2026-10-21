@@ -187,6 +187,14 @@ export function spkiPem(spkiDer: Uint8Array): string {
   return pemEncode('PUBLIC KEY', spkiDer);
 }
 
+/**
+ * کلید خصوصی بدون رمز ("BEGIN PRIVATE KEY") — همان خروجی
+ * `openssl req -new -nodes -keyout mykey.key` در راهنما.
+ */
+export function privateKeyPem(pkcs8Der: Uint8Array): string {
+  return pemEncode('PRIVATE KEY', pkcs8Der);
+}
+
 /* ------------------------------------------------------------------ */
 /* PKCS#1 (traditional) fallback for the PFX tab                      */
 /* ------------------------------------------------------------------ */

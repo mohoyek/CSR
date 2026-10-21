@@ -14,23 +14,16 @@ import {
   type RdnValue,
 } from '../../core/dn';
 import { generateMaterials, type GenerateResult } from '../../core/x509';
-import {
-  PASSPHRASE_MIN_LENGTH,
-  passphraseStrength,
-  passphrasesMatch,
-  validatePassphrase,
-} from '../../core/validate';
+import { PROVINCES } from '../../core/provinces';
 import { Field, Spinner, StatusLog, copyToClipboard, downloadText, type LogEntry } from './ui';
 import { OrgPresetPanel } from './OrgPresetPanel';
 import { SubjectPreview } from './SubjectPreview';
 
 const CERT_TYPE_LABELS: Record<CertType, string> = {
   Gov: 'دولتی',
-  NGO: 'غیردولتی',
+  NGO: 'غیر دولتی',
   Una: 'مستقل',
 };
-
-const STRENGTH_LABELS = ['خیلی ضعیف', 'ضعیف', 'متوسط', 'خوب', 'قوی'];
 
 export interface CsrFormProps {
   profileId: ProfileId;
@@ -42,7 +35,7 @@ export interface CsrFormProps {
 
 /**
  * فرم ساخت CSR — همه‌چیز در یک صفحه:
- * نوع گواهی، فرم، رمز عبور، دکمهٔ تولید، وضعیت و خروجی‌ها.
+ * نوع گواهی، فرم، دکمهٔ تولید، وضعیت و خروجی‌ها.
  */
 export function CsrForm({
   profileId,
@@ -52,8 +45,6 @@ export function CsrForm({
   registerUnsaved,
 }: CsrFormProps) {
   const [values, setValues] = useState<FormValues>({});
-  const [passphrase, setPassphrase] = useState('');
-  const [confirm, setConfirm] = useState('');
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -62,11 +53,6 @@ export function CsrForm({
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   /** تلاش برای تولید انجام شده — از این پس همهٔ خطاها نمایش داده می‌شود */
   const [submitted, setSubmitted] = useState(false);
-
-  const showErrors = useCallback(
-    (id: string) => submitted || touched.has(id),
-    [submitted, touched]
-  );
 
   const profile = getProfile(profileId);
   const fields = useMemo(() => visibleFields(profile, certType), [profile, certType]);
@@ -79,9 +65,10 @@ export function CsrForm({
     [profileId, certType, normalized.values]
   );
 
-  const passResult = validatePassphrase(passphrase);
-  const confirmResult = passphrasesMatch(passphrase, confirm);
-  const strength = passphraseStrength(passphrase);
+  const showErrors = useCallback(
+    (id: string) => submitted || touched.has(id),
+    [submitted, touched]
+  );
 
   useEffect(() => {
     registerUnsaved(result !== null);
@@ -91,6 +78,14 @@ export function CsrForm({
     setValues((prev) => ({ ...prev, [id]: value }));
     setResult(null);
     setCopied(null);
+  }, []);
+
+  const markTouched = useCallback((id: string) => {
+    setTouched((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
   }, []);
 
   const handleGenerate = useCallback(async () => {
@@ -111,16 +106,12 @@ export function CsrForm({
         push({ level: 'error', text: 'فرم ناقص است — فیلدهای ستاره‌دار را تکمیل کنید.' });
         return;
       }
-      if (!passResult.ok || !confirmResult.ok) {
-        push({ level: 'error', text: 'رمز عبور معتبر نیست یا با تکرار آن یکسان نیست.' });
-        return;
-      }
       if (rdns.length === 0) {
         push({ level: 'error', text: 'موضوع گواهی (CN) هنوز کامل نیست.' });
         return;
       }
 
-      const generated = await generateMaterials(rdns, passphrase, (p) => push(p));
+      const generated = await generateMaterials(rdns, (p) => push(p));
       setResult(generated);
       onGenerated(generated);
     } catch (e) {
@@ -128,15 +119,15 @@ export function CsrForm({
     } finally {
       setBusy(false);
     }
-  }, [normalized.valid, passResult.ok, confirmResult.ok, rdns, passphrase, onGenerated]);
+  }, [normalized.valid, rdns, onGenerated]);
 
   const handleReset = useCallback(() => {
     setValues({});
-    setPassphrase('');
-    setConfirm('');
     setResult(null);
     setLog([]);
     setCopied(null);
+    setTouched(new Set());
+    setSubmitted(false);
     onGenerated(null);
   }, [onGenerated]);
 
@@ -145,37 +136,46 @@ export function CsrForm({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* ---- type of certificate ---- */}
-      <fieldset className="card p-4">
-        <legend className="label">نوع گواهی</legend>
-        <div className="flex flex-wrap gap-4">
-          {profile.certTypes.map((t) => (
-            <label key={t} className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="certType"
-                checked={certType === t}
-                onChange={() => {
-                  onCertTypeChange(t);
-                  setResult(null);
-                }}
-              />
-              {CERT_TYPE_LABELS[t]}
-              <span className="ltr text-xs text-slate-400">({t})</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <section className="card p-4">
+        <fieldset>
+          <legend className="label">نوع گواهی</legend>
+          <div className="flex flex-wrap gap-2">
+            {profile.certTypes.map((t) => (
+              <label
+                key={t}
+                className={`flex cursor-pointer items-center gap-2 rounded-xl border px-4 py-2 text-sm transition-colors ${
+                  certType === t
+                    ? 'border-brand-600 bg-brand-50 font-semibold text-brand-900 dark:border-brand-500 dark:bg-brand-950/40 dark:text-brand-100'
+                    : 'border-slate-300 text-slate-600 hover:border-slate-400 dark:border-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="certType"
+                  checked={certType === t}
+                  onChange={() => {
+                    onCertTypeChange(t);
+                    setResult(null);
+                  }}
+                />
+                {CERT_TYPE_LABELS[t]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </section>
 
       {/* ---- the form ---- */}
       <section className="card p-4">
         <h2 className="mb-3 text-base font-bold">{profile.title}</h2>
-        <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
           {fields.map((f: FieldDef) => {
             const presence = presenceOf(f, certType);
             const res = normalized.results[f.id];
             const value = values[f.id] ?? '';
+            const isProvince = f.id === 'st';
             return (
               <Field
                 key={f.id}
@@ -194,133 +194,58 @@ export function CsrForm({
                       : undefined)
                 }
               >
-                {({ id, describedBy, invalid }) => (
-                  <input
-                    id={id}
-                    type="text"
-                    className={`input ${invalid ? 'input-error' : ''}`}
-                    value={value}
-                    aria-describedby={describedBy}
-                    aria-invalid={invalid || undefined}
-                    inputMode={f.numeric ? 'numeric' : undefined}
-                    autoComplete="off"
-                    spellCheck={false}
-                    onBlur={() =>
-                      setTouched((prev) => {
-                        const next = new Set(prev);
-                        next.add(f.id);
-                        return next;
-                      })
-                    }
-                    onChange={(e) => setField(f.id, e.target.value)}
-                  />
-                )}
+                {({ id, describedBy, invalid }) =>
+                  isProvince ? (
+                    <select
+                      id={id}
+                      className={`input ${invalid ? 'input-error' : ''}`}
+                      value={value}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid || undefined}
+                      onBlur={() => markTouched(f.id)}
+                      onChange={(e) => setField(f.id, e.target.value)}
+                    >
+                      <option value="">— انتخاب کنید —</option>
+                      {PROVINCES.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id={id}
+                      type="text"
+                      className={`input ${invalid ? 'input-error' : ''}`}
+                      value={value}
+                      aria-describedby={describedBy}
+                      aria-invalid={invalid || undefined}
+                      inputMode={f.numeric ? 'numeric' : undefined}
+                      autoComplete="off"
+                      spellCheck={false}
+                      onBlur={() => markTouched(f.id)}
+                      onChange={(e) => setField(f.id, e.target.value)}
+                    />
+                  )
+                }
               </Field>
             );
           })}
         </div>
-      </section>
 
-      {/* ---- passphrase ---- */}
-      <section className="card p-4">
-        <h2 className="mb-3 text-base font-bold">رمز عبور کلید خصوصی</h2>
-        <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
-          <Field
-            id="passphrase"
-            label={`رمز عبور (حداقل ${PASSPHRASE_MIN_LENGTH} نویسه)`}
-            required
-            error={showErrors('passphrase') ? passResult.error : undefined}
-            hint="اگر رمز را فراموش کنید، بازیابی کلید ممکن نیست."
-          >
-            {({ id, describedBy, invalid }) => (
-              <input
-                id={id}
-                type="password"
-                className={`input ${invalid ? 'input-error' : ''}`}
-                value={passphrase}
-                autoComplete="new-password"
-                aria-describedby={describedBy}
-                aria-invalid={invalid || undefined}
-                onBlur={() =>
-                  setTouched((prev) => {
-                    const next = new Set(prev);
-                    next.add('passphrase');
-                    return next;
-                  })
-                }
-                onChange={(e) => {
-                  setPassphrase(e.target.value);
-                  setResult(null);
-                }}
-              />
-            )}
-          </Field>
-
-          <Field
-            id="passphrase-confirm"
-            label="تکرار رمز عبور"
-            required
-            error={showErrors('passphrase-confirm') ? confirmResult.error : undefined}
-          >
-            {({ id, describedBy, invalid }) => (
-              <input
-                id={id}
-                type="password"
-                className={`input ${invalid ? 'input-error' : ''}`}
-                value={confirm}
-                autoComplete="new-password"
-                aria-describedby={describedBy}
-                aria-invalid={invalid || undefined}
-                onBlur={() =>
-                  setTouched((prev) => {
-                    const next = new Set(prev);
-                    next.add('passphrase-confirm');
-                    return next;
-                  })
-                }
-                onChange={(e) => {
-                  setConfirm(e.target.value);
-                  setResult(null);
-                }}
-              />
-            )}
-          </Field>
-        </div>
-
-        {passphrase.length > 0 ? (
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-xs text-slate-600 dark:text-slate-300">قدرت رمز:</span>
-            <span className="chip bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              {STRENGTH_LABELS[strength]}
-            </span>
-            <span className="flex gap-1" aria-hidden="true">
-              {[0, 1, 2, 3].map((i) => (
-                <span
-                  key={i}
-                  className={`h-1.5 w-6 rounded-full ${
-                    i < strength ? 'bg-brand-600' : 'bg-slate-300 dark:bg-slate-700'
-                  }`}
-                />
-              ))}
-            </span>
-          </div>
-        ) : null}
-
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void handleGenerate()}
-            disabled={busy}
-          >
-            {busy ? <Spinner label="در حال تولید…" /> : '🔐 تولید CSR و کلیدها'}
+        <button
+          type="button"
+          className="btn-primary mt-4 w-full py-3"
+          onClick={() => void handleGenerate()}
+          disabled={busy}
+        >
+          {busy ? <Spinner label="در حال تولید…" /> : '🔐 تولید کلیدهای سازمان مودیبان'}
+        </button>
+        {result || Object.keys(values).length > 0 ? (
+          <button type="button" className="btn-ghost mt-2 w-full" onClick={handleReset}>
+            پاک‌سازی فرم
           </button>
-          {result || values['ouOrg'] ? (
-            <button type="button" className="btn-ghost" onClick={handleReset}>
-              پاک‌سازی
-            </button>
-          ) : null}
-        </div>
+        ) : null}
       </section>
 
       {/* ---- status ---- */}
@@ -340,11 +265,11 @@ export function CsrForm({
             />
             <OutputRow
               filename="mykey.key"
-              title="کلید خصوصی رمزگذاری‌شده"
+              title="کلید خصوصی"
               description="محرمانه — فقط نزد خودتان نگه دارید و به هیچ‌کس ندهید."
               danger
-              onDownload={() => downloadText('mykey.key', result.encryptedKeyPem)}
-              onCopy={() => copy('mykey.key', result.encryptedKeyPem)}
+              onDownload={() => downloadText('mykey.key', result.privateKeyPem)}
+              onCopy={() => copy('mykey.key', result.privateKeyPem)}
             />
             <OutputRow
               filename="mypublickey.pem"
@@ -371,7 +296,7 @@ export function CsrForm({
               </div>
               <div>
                 <p className="mb-1 text-xs font-semibold">mykey.key</p>
-                <pre className="code max-h-64 overflow-y-auto">{result.encryptedKeyPem}</pre>
+                <pre className="code max-h-64 overflow-y-auto">{result.privateKeyPem}</pre>
               </div>
               <div>
                 <p className="mb-1 text-xs font-semibold">mypublickey.pem</p>
