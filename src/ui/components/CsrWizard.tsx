@@ -272,11 +272,12 @@ export function CsrWizard({ onGenerated, registerUnsaved }: CsrWizardProps) {
                     error={res?.error}
                     warning={res?.warning}
                     hint={
-                      f.lang === 'Fa'
+                      f.hint ??
+                      (f.lang === 'Fa'
                         ? 'این فیلد باید فارسی باشد (حروف لاتین فقط هشدار دارد).'
                         : f.lang === 'En'
                           ? 'این فیلد باید انگلیسی و فقط ASCII باشد.'
-                          : undefined
+                          : undefined)
                     }
                   >
                     {({ id, describedBy, invalid }) => (

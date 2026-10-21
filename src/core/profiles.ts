@@ -51,6 +51,8 @@ export interface FieldDef {
   validate?: (value: string) => FieldResult;
   /** sample value shown as helper text */
   sample?: string;
+  /** extra helper text shown under the field */
+  hint?: string;
   /** OU slot: 'org' = organization-name OU (emitted last), n = unit slot (emitted in descending order) */
   ouSlot?: 'org' | 1 | 2 | 3;
   /** this field is an input that only composes the CN template */
@@ -140,10 +142,13 @@ function emailField(): FieldDef {
     shortName: 'E',
     configName: 'emailAddress',
     label: 'نشانی رایانامه',
-    lang: 'En',
+    // the guide's appendix tables leave the language of E unspecified ("-"),
+    // so it is unrestricted; the format is still validated below
+    lang: 'All',
     asn1Type: IA5,
     presence: { Gov: 'optional', NGO: 'optional', Una: 'optional' },
     validate: validateEmail,
+    hint: 'قالب نشانی رایانامه: name@example.com',
     sample: 'sysadmin@ecdev.ir',
   };
 }
