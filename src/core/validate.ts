@@ -74,9 +74,15 @@ export function validateDigitsOnly(raw: string): FieldResult {
   return okResult;
 }
 
-/** فیلد انگلیسی: فقط ASCII مجاز */
+/**
+ * فیلد انگلیسی: فقط ASCII، بدون فاصله، و با حرف اول بزرگ.
+ * مثال: `IranCenterForEcommerceDevelopment`
+ */
 export function validateEn(value: string): FieldResult {
-  if (!isAsciiOnly(value)) return { ok: false, error: 'در این فیلد فقط نویسه‌های انگلیسی (ASCII) مجاز است' };
+  if (!isAsciiOnly(value))
+    return { ok: false, error: 'در این فیلد فقط نویسه‌های انگلیسی (ASCII) مجاز است' };
+  if (/\s/.test(value)) return { ok: false, error: 'این فیلد باید بدون فاصله نوشته شود' };
+  if (!/^[A-Z]/.test(value)) return { ok: false, error: 'حرف اول باید بزرگ باشد' };
   return okResult;
 }
 

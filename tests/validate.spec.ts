@@ -3,10 +3,37 @@ import {
   legalIdChecksumValid,
   nationalCodeChecksumValid,
   validateEmail,
+  validateEn,
   validateLegalId,
   validateNationalCode,
   validatePassphrase,
 } from '../src/core/validate';
+
+describe('English fields (ASCII, no space, capital first letter)', () => {
+  it('accepts a name with a capital first letter and no spaces', () => {
+    expect(validateEn('IranCenterForEcommerceDevelopment').ok).toBe(true);
+    expect(validateEn('Ali').ok).toBe(true);
+    expect(validateEn('Ahmadi').ok).toBe(true);
+  });
+
+  it('rejects non-ASCII characters', () => {
+    const r = validateEn('مرکزDoe');
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('ASCII');
+  });
+
+  it('rejects spaces', () => {
+    const r = validateEn('Iran Center');
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('فاصله');
+  });
+
+  it('rejects a lowercase first letter', () => {
+    const r = validateEn('iranCenter');
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('بزرگ');
+  });
+});
 
 describe('national code (کد ملی, 10 digits) check digit', () => {
   it('accepts a valid known code', () => {

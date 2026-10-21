@@ -144,11 +144,9 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
                 warning={showErrors(f.id) ? res?.warning : undefined}
                 hint={
                   f.hint ??
-                  (f.lang === 'Fa'
-                    ? 'این فیلد باید فارسی باشد (حروف لاتین فقط هشدار دارد).'
-                    : f.lang === 'En'
-                      ? 'این فیلد باید انگلیسی و فقط ASCII باشد.'
-                      : undefined)
+                  (f.lang === 'En'
+                    ? 'با حرف اول بزرگ و بدون فاصله نوشته شود (مثل: IranCenterForEcommerceDevelopment)'
+                    : undefined)
                 }
               >
                 {({ id, describedBy, invalid }) => (

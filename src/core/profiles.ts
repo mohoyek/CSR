@@ -349,7 +349,7 @@ const legalPersonFields: FieldDef[] = [
     presence: { Gov: 'required', NGO: 'required' },
     validate: validateEn,
     cnInput: true,
-    sample: 'Iran Center for Ecommerce Development',
+    sample: 'IranCenterForEcommerceDevelopment',
   },
   ...provinceCity,
 ];

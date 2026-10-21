@@ -99,7 +99,7 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     await page.waitForSelector('#f-serialNumber');
     const values: Record<string, string> = {
       'f-serialNumber': '14000405500',
-      'f-cnOrgNameEn': 'Iran Center for Ecommerce Development',
+      'f-cnOrgNameEn': 'IranCenterForEcommerceDevelopment',
       'f-ouOrg': 'مرکز توسعه تجارت الکترونیکی',
       'f-l': 'تهران',
       'f-st': 'تهران',
@@ -112,10 +112,10 @@ describe.skipIf(!BROWSER)('end-to-end (real browser)', () => {
     // the live preview must show the subject
     await page.click('summary ::-p-text(پیش‌نمایش موضوع گواهی)');
     await page.waitForFunction(() =>
-      document.body.innerText.includes('Iran Center for Ecommerce Development [Stamp]')
+      document.body.innerText.includes('IranCenterForEcommerceDevelopment [Stamp]')
     );
     const bodyText = await page.evaluate(() => document.body.innerText);
-    expect(bodyText).toContain('CN=Iran Center for Ecommerce Development [Stamp]');
+    expect(bodyText).toContain('CN=IranCenterForEcommerceDevelopment [Stamp]');
     expect(bodyText).toContain('serialNumber=14000405500');
     expect(bodyText).toContain('C=IR');
     // the equivalent config.txt of the guide

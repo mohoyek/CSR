@@ -11,7 +11,7 @@ import { CN_TEMPLATE_P1, CN_TEMPLATE_P3, getProfile } from '../src/core/profiles
 /** The guide's worked example (appendix 2): مرکز توسعه تجارت الکترونیکی */
 const P2_VALUES = {
   serialNumber: '14000405500',
-  cnOrgNameEn: 'Iran Center for Ecommerce Development',
+  cnOrgNameEn: 'IranCenterForEcommerceDevelopment',
   ouOrg: 'مرکز توسعه تجارت الکترونیکی',
   l: 'تهران',
   st: 'تهران',
@@ -31,7 +31,7 @@ describe('profile 2 (legal person / stamp) subject order', () => {
     ]);
     // no unit OUs filled -> only the org-name OU (last among the OUs)
     expect(rdns[3]).toMatchObject({ value: 'مرکز توسعه تجارت الکترونیکی', configName: '1.OU' });
-    expect(rdns[0]).toMatchObject({ value: 'Iran Center for Ecommerce Development [Stamp]', asn1Type: 'UTF8String' });
+    expect(rdns[0]).toMatchObject({ value: 'IranCenterForEcommerceDevelopment [Stamp]', asn1Type: 'UTF8String' });
     expect(rdns[1]).toMatchObject({ value: '14000405500', asn1Type: 'PrintableString' });
     expect(rdns[2]).toMatchObject({ value: 'Non-Governmental', asn1Type: 'UTF8String' });
     expect(rdns.at(-1)).toMatchObject({ value: 'IR', asn1Type: 'PrintableString' });
@@ -51,7 +51,7 @@ describe('profile 2 (legal person / stamp) subject order', () => {
       'distinguished_name = dn',
       '',
       '[dn]',
-      'CN = Iran Center for Ecommerce Development [Stamp]',
+      'CN = IranCenterForEcommerceDevelopment [Stamp]',
       'serialNumber = 14000405500',
       'O = Non-Governmental',
       '1.OU = مرکز توسعه تجارت الکترونیکی',
@@ -78,7 +78,7 @@ describe('subject line preview', () => {
   it('joins shortName=value in emission order', () => {
     const rdns = buildSubjectRdns(2, 'NGO', P2_VALUES);
     expect(subjectLine(rdns)).toBe(
-      'CN=Iran Center for Ecommerce Development [Stamp], serialNumber=14000405500, O=Non-Governmental, OU=مرکز توسعه تجارت الکترونیکی, L=تهران, ST=تهران, C=IR'
+      'CN=IranCenterForEcommerceDevelopment [Stamp], serialNumber=14000405500, O=Non-Governmental, OU=مرکز توسعه تجارت الکترونیکی, L=تهران, ST=تهران, C=IR'
     );
   });
 });

@@ -121,7 +121,7 @@ function derBytesOf(csrPath: string): Buffer {
 
 const P2_VALUES = {
   serialNumber: '14000405500',
-  cnOrgNameEn: 'Iran Center for Ecommerce Development',
+  cnOrgNameEn: 'IranCenterForEcommerceDevelopment',
   ouOrg: 'مرکز توسعه تجارت الکترونیکی',
   l: 'تهران',
   st: 'تهران',
@@ -210,7 +210,7 @@ describe.skipIf(!HAS_OPENSSL)('OpenSSL interop', () => {
       'UTF8STRING',
       'PRINTABLESTRING',
     ]);
-    expect(ourRdns[0]!.value).toBe('Iran Center for Ecommerce Development [Stamp]');
+    expect(ourRdns[0]!.value).toBe('IranCenterForEcommerceDevelopment [Stamp]');
     expect(ourRdns[1]!.value).toBe('14000405500');
     expect(ourRdns[3]!.value).toBe('مرکز توسعه تجارت الکترونیکی');
   }, 60_000);
