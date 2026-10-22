@@ -64,7 +64,7 @@ export default function App() {
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
           <h1 className="min-w-0 flex-1 truncate text-base font-extrabold sm:text-lg">
-            ابزار ساخت کلید های مودیبان
+            ابزار ساخت کلید های مودیان
           </h1>
           <button
             type="button"
