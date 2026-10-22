@@ -180,30 +180,33 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
 
       {/* ---- output ---- */}
       {result ? (
-        <section className="card p-4">
+ <section className="card p-4">
           <h2 className="mb-3 text-base font-bold">خروجی</h2>
           <div className="grid gap-3 md:grid-cols-3">
             <OutputBox
               filename="CSR.txt"
-              title="(CSR)"
+              title="درخواست گواهی (CSR)"
+              description=""
               content={result.csrPem}
               onDownload={() => downloadText('CSR.txt', result.csrPem)}
-              onCopy={() => copy('CSR.txt', result.csrPem)}
+              onCopy={() => { copy('CSR.txt', result.csrPem); }}
             />
             <OutputBox
               filename="PrivateKey.key"
               title="کلید خصوصی"
+              description=""
               content={result.privateKeyPem}
               danger
               onDownload={() => downloadText('PrivateKey.key', result.privateKeyPem)}
-              onCopy={() => copy('PrivateKey.key', result.privateKeyPem)}
+              onCopy={() => { copy('PrivateKey.key', result.privateKeyPem); }}
             />
             <OutputBox
               filename="PublicKey.pem"
               title="کلید عمومی"
+              description=""
               content={result.publicKeyPem}
               onDownload={() => downloadText('PublicKey.pem', result.publicKeyPem)}
-              onCopy={() => copy('PublicKey.pem', result.publicKeyPem)}
+              onCopy={() => { copy('PublicKey.pem', result.publicKeyPem); }}
             />
           </div>
           {copied ? (
