@@ -185,7 +185,7 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
           <div className="grid gap-3 md:grid-cols-3">
             <OutputBox
               filename="CSR.txt"
-              title="درخواست گواهی (CSR)"
+              title="(CSR)"
               description="امضای دیجیتال"
               content={result.csrPem}
               onDownload={() => downloadText('CSR.txt', result.csrPem)}
@@ -194,7 +194,7 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
             <OutputBox
               filename="PrivateKey.key"
               title="کلید خصوصی"
-              description="جهت اصتفاده در نرم افزار"
+              description="جهت استفاده در نرم افزار"
               content={result.privateKeyPem}
               danger
               onDownload={() => downloadText('PrivateKey.key', result.privateKeyPem)}
