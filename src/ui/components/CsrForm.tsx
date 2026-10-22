@@ -166,7 +166,7 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
           onClick={() => void handleGenerate()}
           disabled={busy}
         >
-          {busy ? <Spinner label="در حال تولید…" /> : '🔐 تولید کلیدهای سازمان مودیبان'}
+          {busy ? <Spinner label="در حال تولید…" /> : '🔐 تولید کلیدهای سازمان مودیان'}
         </button>
         {result || Object.keys(values).length > 0 ? (
           <button type="button" className="btn-ghost mt-2 w-full" onClick={handleReset}>
@@ -186,7 +186,6 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
             <OutputBox
               filename="CSR.txt"
               title="درخواست گواهی (CSR)"
-              description="برای صدور گواهی بفرستید"
               content={result.csrPem}
               onDownload={() => downloadText('CSR.txt', result.csrPem)}
               onCopy={() => copy('CSR.txt', result.csrPem)}
@@ -194,7 +193,6 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
             <OutputBox
               filename="PrivateKey.key"
               title="کلید خصوصی"
-              description="محرمانه — به هیچ‌کس ندهید"
               content={result.privateKeyPem}
               danger
               onDownload={() => downloadText('PrivateKey.key', result.privateKeyPem)}
@@ -203,7 +201,6 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
             <OutputBox
               filename="PublicKey.pem"
               title="کلید عمومی"
-              description="کلید عمومی متناظر"
               content={result.publicKeyPem}
               onDownload={() => downloadText('PublicKey.pem', result.publicKeyPem)}
               onCopy={() => copy('PublicKey.pem', result.publicKeyPem)}
