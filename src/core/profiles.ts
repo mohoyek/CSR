@@ -334,7 +334,7 @@ const naturalPersonFields: FieldDef[] = [
 const legalPersonFields: FieldDef[] = [
   legalIdField(),
   emailField(),
-  ...ouFields('نام سازمان (فارسی)'),
+  ...ouFields('نام شرکت (فارسی)'),
   {
     id: 'cnOrgNameEn',
     oid: '',
