@@ -186,7 +186,7 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
             <OutputBox
               filename="CSR.txt"
               title="درخواست گواهی (CSR)"
-              description="برای صدور گواهی بفرستید"
+              description="امضای دیجیتال"
               content={result.csrPem}
               onDownload={() => downloadText('CSR.txt', result.csrPem)}
               onCopy={() => { copy('CSR.txt', result.csrPem); }}
@@ -194,7 +194,7 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
             <OutputBox
               filename="PrivateKey.key"
               title="کلید خصوصی"
-              description="محرمانه — به هیچ‌کس ندهید"
+              description="جهت اصتفاده در نرم افزار"
               content={result.privateKeyPem}
               danger
               onDownload={() => downloadText('PrivateKey.key', result.privateKeyPem)}
@@ -203,7 +203,7 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
             <OutputBox
               filename="PublicKey.pem"
               title="کلید عمومی"
-              description="کلید عمومی متناظر"
+              description="برای ساخت شناسه یکتا"
               content={result.publicKeyPem}
               onDownload={() => downloadText('PublicKey.pem', result.publicKeyPem)}
               onCopy={() => { copy('PublicKey.pem', result.publicKeyPem); }}
