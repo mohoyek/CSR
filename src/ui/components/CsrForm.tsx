@@ -185,7 +185,7 @@ export function CsrForm({ profileId, onGenerated, registerUnsaved }: CsrFormProp
           <div className="grid gap-3 md:grid-cols-3">
             <OutputBox
               filename="CSR.txt"
-              title="درخواست گواهی (CSR)"
+              title="(CSR)"
               content={result.csrPem}
               onDownload={() => downloadText('CSR.txt', result.csrPem)}
               onCopy={() => copy('CSR.txt', result.csrPem)}
@@ -257,7 +257,7 @@ function OutputBox({
             ⤓ دریافت
           </button>
           <button type="button" className="btn-ghost px-2 py-1 text-[11px]" onClick={onCopy}>
-            ⧉ رونوشت
+            ⧉ کپی
           </button>
           <span className="ltr mr-auto font-mono text-[10px] text-slate-400">{filename}</span>
         </div>
